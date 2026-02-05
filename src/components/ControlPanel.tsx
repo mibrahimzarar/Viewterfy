@@ -10,6 +10,7 @@ interface ControlPanelProps {
     onClose?: () => void
 }
 
+// Video Composition Layout Refactored
 export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
     const {
         setPhoneColor,
