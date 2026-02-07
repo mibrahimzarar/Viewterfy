@@ -42,10 +42,10 @@ export const Layout = () => {
     if (!mounted) return null
 
     return (
-        <div className="flex h-screen w-full bg-[#0f1218] text-white overflow-hidden font-sans selection:bg-primary/30">
+        <div className="flex h-screen w-full bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 text-white overflow-hidden font-sans selection:bg-primary/30">
 
             {/* Mobile Header */}
-            <header className="md:hidden fixed top-0 left-0 right-0 z-50 bg-[#131720]/95 backdrop-blur-xl border-b border-white/10">
+            <header className="md:hidden fixed top-0 left-0 right-0 z-50 bg-black/40 backdrop-blur-xl border-b border-white/10">
                 <div className="px-4 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <img src="/images/Logo.png" alt="UIReel" className="w-9 h-9 rounded-xl shadow-lg" />
@@ -92,7 +92,7 @@ export const Layout = () => {
                         animate={{ x: 0 }}
                         exit={{ x: '-100%' }}
                         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                        className="fixed z-50 h-full w-[320px] border-r border-white/10 bg-[#131720] backdrop-blur-xl shadow-2xl flex-col md:hidden flex"
+                        className="fixed z-50 h-full w-[320px] border-r border-white/10 bg-black/30 backdrop-blur-xl shadow-2xl flex-col md:hidden flex"
                     >
                         {/* Mobile close button */}
                         <div className="flex items-center justify-between p-4 border-b border-white/10">
@@ -116,7 +116,7 @@ export const Layout = () => {
             </AnimatePresence>
 
             {/* Desktop Sidebar - Only on desktop */}
-            <aside className="hidden md:flex w-[380px] border-r border-white/10 bg-[#0d1015]/80 backdrop-blur-xl z-20 shadow-2xl flex-shrink-0 flex-col">
+            <aside className="hidden md:flex w-[380px] border-r border-white/10 bg-black/30 backdrop-blur-xl z-20 shadow-2xl flex-shrink-0 flex-col">
                 {/* Branding Header */}
                 <div className="p-5 border-b border-white/10 flex items-center gap-3 gradient-mesh">
                     <div className="relative">
@@ -136,13 +136,13 @@ export const Layout = () => {
             </aside>
 
             {/* Main Stage Area */}
-            <main className="flex-1 relative flex items-center justify-center bg-dots-pattern bg-[#0a0d12] pt-16 md:pt-0">
+            <main className="flex-1 relative flex items-center justify-center bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 pt-16 md:pt-0">
 
-                {/* Ambient Background Glow */}
+                {/* Ambient Background Glow - Elegant Light Colors */}
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                    <div className="absolute top-1/4 left-1/3 w-[500px] h-[500px] bg-blue-500/15 rounded-full blur-[150px] opacity-60" />
-                    <div className="absolute bottom-1/3 right-1/4 w-[400px] h-[400px] bg-purple-500/12 rounded-full blur-[120px] opacity-50" />
-                    <div className="absolute top-1/2 right-1/3 w-[300px] h-[300px] bg-cyan-500/10 rounded-full blur-[100px] opacity-40" />
+                    <div className="absolute top-1/4 left-1/3 w-[500px] h-[500px] bg-violet-400/20 rounded-full blur-[150px] opacity-70" />
+                    <div className="absolute bottom-1/3 right-1/4 w-[400px] h-[400px] bg-rose-300/15 rounded-full blur-[120px] opacity-60" />
+                    <div className="absolute top-1/2 right-1/3 w-[300px] h-[300px] bg-sky-300/15 rounded-full blur-[100px] opacity-50" />
                 </div>
 
                 {/* Canvas Stage - What gets recorded */}
