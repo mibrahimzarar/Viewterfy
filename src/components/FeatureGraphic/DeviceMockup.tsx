@@ -20,7 +20,6 @@ const deviceDimensions: Record<DeviceType, { width: number; height: number; bord
     'iphone': { width: 280, height: 580, borderRadius: 48, borderWidth: 8, notchType: 'dynamic-island' },
     'android': { width: 280, height: 560, borderRadius: 36, borderWidth: 6, notchType: 'none' },
     'ipad': { width: 480, height: 640, borderRadius: 32, borderWidth: 10, notchType: 'none' },
-    'android-tablet': { width: 520, height: 340, borderRadius: 24, borderWidth: 8, notchType: 'none' },
 }
 
 export const DeviceMockup = ({ className, scale = 1 }: DeviceMockupProps) => {

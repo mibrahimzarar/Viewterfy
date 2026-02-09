@@ -25,7 +25,6 @@ export const FeatureGraphicEditor = () => {
     // Calculate device scale based on canvas size + user adjustment
     const getDeviceScale = () => {
         let baseScale = 0.55
-        if (store.deviceType === 'android-tablet') baseScale = 0.6
         if (store.deviceType === 'ipad') baseScale = 0.55
         if (aspectRatio > 1.5) baseScale = 0.6
         return baseScale * store.deviceScale

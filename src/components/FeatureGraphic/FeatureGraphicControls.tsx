@@ -12,7 +12,6 @@ const deviceOptions: { id: DeviceType; label: string; icon: typeof SmartphoneIco
     { id: 'iphone', label: 'iPhone', icon: SmartphoneIcon },
     { id: 'android', label: 'Android', icon: SmartphoneIcon },
     { id: 'ipad', label: 'iPad', icon: TabletIcon },
-    { id: 'android-tablet', label: 'Android Tablet', icon: TabletIcon },
 ]
 
 const colorOptions: { id: DeviceColor; label: string; color: string }[] = [

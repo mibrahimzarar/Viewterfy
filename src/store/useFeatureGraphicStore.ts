@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 // Device Types
-export type DeviceType = 'iphone' | 'android' | 'ipad' | 'android-tablet'
+export type DeviceType = 'iphone' | 'android' | 'ipad'
 export type DeviceColor = 'black' | 'silver' | 'gold' | 'blue' | 'purple'
 export type BackgroundType = 'gradient' | 'solid' | 'pattern' | 'image'
 export type PatternType = 'dots' | 'grid' | 'waves' | 'circles'
