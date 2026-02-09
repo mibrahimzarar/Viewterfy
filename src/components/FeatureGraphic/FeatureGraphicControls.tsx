@@ -1,5 +1,5 @@
 import { clsx } from 'clsx'
-import { Upload, X, Smartphone, Type, Palette } from 'lucide-react'
+import { Upload, X, Smartphone, Type, Palette, Maximize2 } from 'lucide-react'
 import { useFeatureGraphicStore, type DeviceType, type DeviceColor } from '../../store/useFeatureGraphicStore'
 import { BackgroundPicker } from './BackgroundPicker'
 import { ExportPanel } from './ExportPanel'
@@ -28,11 +28,13 @@ export const FeatureGraphicControls = () => {
         screenshot,
         deviceType,
         deviceColor,
+        deviceScale,
         headline,
         headlineColor,
         setScreenshot,
         setDeviceType,
         setDeviceColor,
+        setDeviceScale,
         setHeadline,
         setHeadlineColor,
     } = useFeatureGraphicStore()
@@ -133,6 +135,25 @@ export const FeatureGraphicControls = () => {
                                 title={label}
                             />
                         ))}
+                    </div>
+
+                    {/* Mockup Size Slider */}
+                    <div className="pt-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs text-white/50 flex items-center gap-1.5">
+                                <Maximize2 size={12} /> Mockup Size
+                            </span>
+                            <span className="text-xs text-white/80 font-mono">{Math.round(deviceScale * 100)}%</span>
+                        </div>
+                        <input
+                            type="range"
+                            min="0.5"
+                            max="1.5"
+                            step="0.05"
+                            value={deviceScale}
+                            onChange={(e) => setDeviceScale(parseFloat(e.target.value))}
+                            className="w-full h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-violet-500 hover:accent-violet-400 transition-all"
+                        />
                     </div>
                 </section>
 

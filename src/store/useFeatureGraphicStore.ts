@@ -56,8 +56,10 @@ interface FeatureGraphicState {
     // Device Settings
     deviceType: DeviceType
     deviceColor: DeviceColor
+    deviceScale: number
     setDeviceType: (type: DeviceType) => void
     setDeviceColor: (color: DeviceColor) => void
+    setDeviceScale: (scale: number) => void
 
     // Background Settings
     backgroundType: BackgroundType
@@ -95,6 +97,7 @@ const initialState = {
     screenshot: null,
     deviceType: 'iphone' as DeviceType,
     deviceColor: 'black' as DeviceColor,
+    deviceScale: 1.0,
     backgroundType: 'gradient' as BackgroundType,
     backgroundColor: '#1a1a2e',
     backgroundGradient: PRESET_GRADIENTS[PRESET_GRADIENTS.length - 1].value,
@@ -116,6 +119,7 @@ export const useFeatureGraphicStore = create<FeatureGraphicState>((set) => ({
     // Device Actions
     setDeviceType: (deviceType) => set({ deviceType }),
     setDeviceColor: (deviceColor) => set({ deviceColor }),
+    setDeviceScale: (deviceScale) => set({ deviceScale }),
 
     // Background Actions
     setBackgroundType: (backgroundType) => set({ backgroundType }),

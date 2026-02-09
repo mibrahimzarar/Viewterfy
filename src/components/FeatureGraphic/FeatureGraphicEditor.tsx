@@ -22,12 +22,13 @@ export const FeatureGraphicEditor = () => {
     // Get background style
     const bgStyle = getBackgroundStyle(store)
 
-    // Calculate device scale based on canvas size
+    // Calculate device scale based on canvas size + user adjustment
     const getDeviceScale = () => {
-        if (store.deviceType === 'android-tablet') return 0.6
-        if (store.deviceType === 'ipad') return 0.55
-        if (aspectRatio > 1.5) return 0.6
-        return 0.55
+        let baseScale = 0.55
+        if (store.deviceType === 'android-tablet') baseScale = 0.6
+        if (store.deviceType === 'ipad') baseScale = 0.55
+        if (aspectRatio > 1.5) baseScale = 0.6
+        return baseScale * store.deviceScale
     }
 
     // Mobile sidebar state
