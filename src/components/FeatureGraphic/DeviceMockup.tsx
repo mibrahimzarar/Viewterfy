@@ -102,6 +102,7 @@ export const DeviceMockup = ({ className, scale = 1 }: DeviceMockupProps) => {
                             className="w-full h-full object-cover"
                             style={{
                                 borderRadius: (dims.borderRadius - dims.borderWidth - 2) * scale,
+                                objectPosition: 'center top',
                             }}
                         />
                     ) : (
