@@ -30,15 +30,18 @@ export const PRESET_GRADIENTS = [
     { id: 'lavender', name: 'Lavender', value: 'linear-gradient(135deg, #E8CBC0 0%, #636FA4 100%)' },
 ]
 
-// Export Ratio Presets
+// Export Ratio Presets - Google Play & iOS App Store Requirements
 export const EXPORT_PRESETS = [
+    // Google Play Store
     { id: 'play-feature', name: 'Play Feature Graphic', width: 1024, height: 500, platform: 'android' },
     { id: 'play-phone', name: 'Play Phone Screenshot', width: 1080, height: 1920, platform: 'android' },
     { id: 'play-tablet-7', name: 'Play Tablet 7"', width: 1920, height: 1200, platform: 'android' },
     { id: 'play-tablet-10', name: 'Play Tablet 10"', width: 2560, height: 1600, platform: 'android' },
-    { id: 'ios-65', name: 'iOS 6.5" Display', width: 1242, height: 2688, platform: 'ios' },
+    // iOS App Store
+    { id: 'ios-67', name: 'iOS 6.7" Display', width: 1290, height: 2796, platform: 'ios' },
+    { id: 'ios-65', name: 'iOS 6.5" Display', width: 1284, height: 2778, platform: 'ios' },
     { id: 'ios-55', name: 'iOS 5.5" Display', width: 1242, height: 2208, platform: 'ios' },
-    { id: 'ios-ipad', name: 'iOS iPad Pro', width: 2048, height: 2732, platform: 'ios' },
+    { id: 'ios-ipad', name: 'iOS iPad Pro 12.9"', width: 2048, height: 2732, platform: 'ios' },
 ] as const
 
 export type ExportPresetId = typeof EXPORT_PRESETS[number]['id']

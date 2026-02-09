@@ -107,11 +107,11 @@ export const FeatureGraphicEditor = () => {
                     className="relative overflow-hidden rounded-2xl shadow-2xl"
                     style={{
                         aspectRatio: `${selectedPresetData?.width || 1024} / ${selectedPresetData?.height || 500}`,
-                        // For landscape (aspect > 1), constrain by width
-                        // For portrait (aspect < 1), constrain by height
+                        // For landscape (aspect > 1), constrain by width and let height be calculated
+                        // For portrait (aspect < 1), constrain by height and let width be calculated
                         ...(aspectRatio > 1
-                            ? { width: 'min(95%, 900px)', maxHeight: '70vh' }
-                            : { height: 'min(75vh, 700px)', width: 'min(90%, 500px)' }
+                            ? { width: 'min(95%, 900px)' }
+                            : { height: 'min(75vh, 700px)' }
                         ),
                     }}
                 >
