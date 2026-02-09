@@ -37,10 +37,11 @@ export const EXPORT_PRESETS = [
     { id: 'play-phone', name: 'Play Phone Screenshot', width: 1080, height: 1920, platform: 'android' },
     { id: 'play-tablet-7', name: 'Play Tablet 7"', width: 1920, height: 1200, platform: 'android' },
     { id: 'play-tablet-10', name: 'Play Tablet 10"', width: 2560, height: 1600, platform: 'android' },
-    // iOS App Store
-    { id: 'ios-67', name: 'iOS 6.7" Display', width: 1290, height: 2796, platform: 'ios' },
-    { id: 'ios-65', name: 'iOS 6.5" Display', width: 1284, height: 2778, platform: 'ios' },
-    { id: 'ios-55', name: 'iOS 5.5" Display', width: 1242, height: 2208, platform: 'ios' },
+    // iOS App Store (Apple's exact requirements)
+    { id: 'ios-65-portrait', name: 'iOS 6.5" Portrait', width: 1242, height: 2688, platform: 'ios' },
+    { id: 'ios-65-landscape', name: 'iOS 6.5" Landscape', width: 2688, height: 1242, platform: 'ios' },
+    { id: 'ios-67-portrait', name: 'iOS 6.7" Portrait', width: 1284, height: 2778, platform: 'ios' },
+    { id: 'ios-67-landscape', name: 'iOS 6.7" Landscape', width: 2778, height: 1284, platform: 'ios' },
     { id: 'ios-ipad', name: 'iOS iPad Pro 12.9"', width: 2048, height: 2732, platform: 'ios' },
 ] as const
 
