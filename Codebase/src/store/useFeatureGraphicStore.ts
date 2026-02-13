@@ -43,6 +43,7 @@ export const EXPORT_PRESETS = [
     { id: 'ios-67-portrait', name: 'iOS 6.7" Portrait', width: 1284, height: 2778, platform: 'ios' },
     { id: 'ios-67-landscape', name: 'iOS 6.7" Landscape', width: 2778, height: 1284, platform: 'ios' },
     { id: 'ios-ipad', name: 'iOS iPad Pro 12.9"', width: 2048, height: 2732, platform: 'ios' },
+    { id: 'ios-ipad-13', name: 'iOS iPad 13"', width: 2064, height: 2752, platform: 'ios' },
 ] as const
 
 export type ExportPresetId = typeof EXPORT_PRESETS[number]['id']

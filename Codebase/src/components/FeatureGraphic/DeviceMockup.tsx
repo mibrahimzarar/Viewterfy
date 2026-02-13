@@ -16,10 +16,10 @@ const frameColors: Record<DeviceColor, { border: string; highlight: string; shad
 }
 
 // Device dimensions (relative units)
-const deviceDimensions: Record<DeviceType, { width: number; height: number; borderRadius: number; borderWidth: number; notchType: 'dynamic-island' | 'notch' | 'none' }> = {
+const deviceDimensions: Record<DeviceType, { width: number; height: number; borderRadius: number; borderWidth: number; notchType: 'dynamic-island' | 'notch' | 'camera' | 'none' }> = {
     'iphone': { width: 280, height: 580, borderRadius: 48, borderWidth: 8, notchType: 'dynamic-island' },
     'android': { width: 280, height: 560, borderRadius: 36, borderWidth: 6, notchType: 'none' },
-    'ipad': { width: 480, height: 640, borderRadius: 32, borderWidth: 10, notchType: 'none' },
+    'ipad': { width: 420, height: 560, borderRadius: 20, borderWidth: 12, notchType: 'camera' },
 }
 
 export const DeviceMockup = ({ className, scale = 1 }: DeviceMockupProps) => {
@@ -30,6 +30,7 @@ export const DeviceMockup = ({ className, scale = 1 }: DeviceMockupProps) => {
 
     const scaledWidth = dims.width * scale
     const scaledHeight = dims.height * scale
+    const isIPad = deviceType === 'ipad'
 
     return (
         <div
@@ -53,7 +54,7 @@ export const DeviceMockup = ({ className, scale = 1 }: DeviceMockupProps) => {
                     `,
                 }}
             >
-                {/* Dynamic Island / Notch */}
+                {/* Dynamic Island (iPhone) */}
                 {dims.notchType === 'dynamic-island' && (
                     <div
                         className="absolute left-1/2 -translate-x-1/2 bg-black z-30 flex justify-center items-center"
@@ -82,6 +83,20 @@ export const DeviceMockup = ({ className, scale = 1 }: DeviceMockupProps) => {
                             width: 140 * scale,
                             borderBottomLeftRadius: 16 * scale,
                             borderBottomRightRadius: 16 * scale,
+                        }}
+                    />
+                )}
+
+                {/* iPad Front Camera (small dot at top center) */}
+                {dims.notchType === 'camera' && (
+                    <div
+                        className="absolute left-1/2 -translate-x-1/2 z-30 rounded-full"
+                        style={{
+                            top: 6 * scale,
+                            width: 8 * scale,
+                            height: 8 * scale,
+                            background: 'radial-gradient(circle, #1a1a2e 40%, #0d0d1a 100%)',
+                            boxShadow: `0 0 0 ${1.5 * scale}px rgba(50,50,80,0.6)`,
                         }}
                     />
                 )}
@@ -119,6 +134,21 @@ export const DeviceMockup = ({ className, scale = 1 }: DeviceMockupProps) => {
                         </div>
                     )}
                 </div>
+
+                {/* iPad Home Indicator Bar */}
+                {isIPad && (
+                    <div
+                        className="absolute left-1/2 -translate-x-1/2 rounded-full"
+                        style={{
+                            bottom: 6 * scale,
+                            width: 100 * scale,
+                            height: 4 * scale,
+                            background: 'rgba(255,255,255,0.5)',
+                            borderRadius: 3 * scale,
+                            zIndex: 60,
+                        }}
+                    />
+                )}
 
                 {/* Glass Reflection Overlay */}
                 <div
