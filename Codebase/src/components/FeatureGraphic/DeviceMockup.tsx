@@ -19,8 +19,7 @@ const frameColors: Record<DeviceColor, { border: string; highlight: string; shad
 const deviceDimensions: Record<DeviceType, { width: number; height: number; borderRadius: number; borderWidth: number; notchType: 'dynamic-island' | 'notch' | 'camera' | 'none' }> = {
     'iphone': { width: 280, height: 580, borderRadius: 48, borderWidth: 8, notchType: 'dynamic-island' },
     'android': { width: 280, height: 560, borderRadius: 36, borderWidth: 6, notchType: 'camera' },
-    'ipad': { width: 420, height: 560, borderRadius: 24, borderWidth: 12, notchType: 'notch' },
-    'ipad-mini': { width: 380, height: 520, borderRadius: 20, borderWidth: 10, notchType: 'notch' },
+    'ipad-13': { width: 520, height: 700, borderRadius: 28, borderWidth: 14, notchType: 'notch' },
     'android-tablet': { width: 440, height: 600, borderRadius: 24, borderWidth: 8, notchType: 'camera' },
     'android-tablet-7': { width: 340, height: 540, borderRadius: 16, borderWidth: 6, notchType: 'camera' },
 }
@@ -33,7 +32,7 @@ export const DeviceMockup = ({ className, scale = 1 }: DeviceMockupProps) => {
 
     const scaledWidth = dims.width * scale
     const scaledHeight = dims.height * scale
-    const isAppleTablet = deviceType === 'ipad' || deviceType === 'ipad-mini'
+    const isAppleTablet = deviceType === 'ipad-13'
 
     return (
         <div
@@ -144,7 +143,7 @@ export const DeviceMockup = ({ className, scale = 1 }: DeviceMockupProps) => {
                         className="absolute left-1/2 -translate-x-1/2 rounded-full"
                         style={{
                             bottom: 8 * scale,
-                            width: (deviceType === 'ipad-mini' ? 80 : 120) * scale,
+                            width: 140 * scale,
                             height: 4 * scale,
                             background: 'rgba(255,255,255,0.5)',
                             borderRadius: 3 * scale,

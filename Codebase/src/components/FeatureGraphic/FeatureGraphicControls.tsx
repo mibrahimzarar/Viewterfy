@@ -11,8 +11,7 @@ import { Smartphone as SmartphoneIcon, Tablet as TabletIcon } from 'lucide-react
 const deviceOptions: { id: DeviceType; label: string; icon: typeof SmartphoneIcon }[] = [
     { id: 'iphone', label: 'iPhone', icon: SmartphoneIcon },
     { id: 'android', label: 'Android Phone', icon: SmartphoneIcon },
-    { id: 'ipad', label: 'iPad 10"', icon: TabletIcon },
-    { id: 'ipad-mini', label: 'iPad 7"', icon: TabletIcon },
+    { id: 'ipad-13', label: 'iPad 13"', icon: TabletIcon },
     { id: 'android-tablet', label: 'Android 10"', icon: TabletIcon },
     { id: 'android-tablet-7', label: 'Android 7"', icon: TabletIcon },
 ]
