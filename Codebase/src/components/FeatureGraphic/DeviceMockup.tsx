@@ -18,8 +18,11 @@ const frameColors: Record<DeviceColor, { border: string; highlight: string; shad
 // Device dimensions (relative units)
 const deviceDimensions: Record<DeviceType, { width: number; height: number; borderRadius: number; borderWidth: number; notchType: 'dynamic-island' | 'notch' | 'camera' | 'none' }> = {
     'iphone': { width: 280, height: 580, borderRadius: 48, borderWidth: 8, notchType: 'dynamic-island' },
-    'android': { width: 280, height: 560, borderRadius: 36, borderWidth: 6, notchType: 'none' },
-    'ipad': { width: 420, height: 560, borderRadius: 20, borderWidth: 12, notchType: 'camera' },
+    'android': { width: 280, height: 560, borderRadius: 36, borderWidth: 6, notchType: 'camera' },
+    'ipad': { width: 420, height: 560, borderRadius: 24, borderWidth: 12, notchType: 'notch' },
+    'ipad-mini': { width: 380, height: 520, borderRadius: 20, borderWidth: 10, notchType: 'notch' },
+    'android-tablet': { width: 440, height: 600, borderRadius: 24, borderWidth: 8, notchType: 'camera' },
+    'android-tablet-7': { width: 340, height: 540, borderRadius: 16, borderWidth: 6, notchType: 'camera' },
 }
 
 export const DeviceMockup = ({ className, scale = 1 }: DeviceMockupProps) => {
@@ -30,7 +33,7 @@ export const DeviceMockup = ({ className, scale = 1 }: DeviceMockupProps) => {
 
     const scaledWidth = dims.width * scale
     const scaledHeight = dims.height * scale
-    const isIPad = deviceType === 'ipad'
+    const isAppleTablet = deviceType === 'ipad' || deviceType === 'ipad-mini'
 
     return (
         <div
@@ -136,12 +139,12 @@ export const DeviceMockup = ({ className, scale = 1 }: DeviceMockupProps) => {
                 </div>
 
                 {/* iPad Home Indicator Bar */}
-                {isIPad && (
+                {isAppleTablet && (
                     <div
                         className="absolute left-1/2 -translate-x-1/2 rounded-full"
                         style={{
-                            bottom: 6 * scale,
-                            width: 100 * scale,
+                            bottom: 8 * scale,
+                            width: (deviceType === 'ipad-mini' ? 80 : 120) * scale,
                             height: 4 * scale,
                             background: 'rgba(255,255,255,0.5)',
                             borderRadius: 3 * scale,

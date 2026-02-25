@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 // Device Types
-export type DeviceType = 'iphone' | 'android' | 'ipad'
+export type DeviceType = 'iphone' | 'android' | 'ipad' | 'ipad-mini' | 'android-tablet' | 'android-tablet-7'
 export type DeviceColor = 'black' | 'silver' | 'gold' | 'blue' | 'purple'
 export type BackgroundType = 'gradient' | 'solid' | 'pattern' | 'image'
 export type PatternType = 'dots' | 'grid' | 'waves' | 'circles'
@@ -44,6 +44,8 @@ export const EXPORT_PRESETS = [
     { id: 'ios-67-landscape', name: 'iOS 6.7" Landscape', width: 2778, height: 1284, platform: 'ios' },
     { id: 'ios-ipad', name: 'iOS iPad Pro 12.9"', width: 2048, height: 2732, platform: 'ios' },
     { id: 'ios-ipad-13', name: 'iOS iPad 13"', width: 2064, height: 2752, platform: 'ios' },
+    { id: 'ios-ipad-10', name: 'iOS iPad 10.9"', width: 1640, height: 2360, platform: 'ios' },
+    { id: 'ios-ipad-mini', name: 'iOS iPad Mini 8.3"', width: 1488, height: 2266, platform: 'ios' },
 ] as const
 
 export type ExportPresetId = typeof EXPORT_PRESETS[number]['id']
