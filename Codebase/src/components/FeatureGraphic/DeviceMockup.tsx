@@ -19,7 +19,7 @@ const frameColors: Record<DeviceColor, { border: string; highlight: string; shad
 const deviceDimensions: Record<DeviceType, { width: number; height: number; borderRadius: number; borderWidth: number; notchType: 'dynamic-island' | 'notch' | 'camera' | 'none' }> = {
     'iphone': { width: 280, height: 580, borderRadius: 48, borderWidth: 8, notchType: 'dynamic-island' },
     'android': { width: 280, height: 560, borderRadius: 36, borderWidth: 6, notchType: 'camera' },
-    'ipad-13': { width: 520, height: 700, borderRadius: 28, borderWidth: 14, notchType: 'notch' },
+    'ipad-13': { width: 525, height: 700, borderRadius: 36, borderWidth: 16, notchType: 'camera' },
     'android-tablet': { width: 440, height: 600, borderRadius: 24, borderWidth: 8, notchType: 'camera' },
     'android-tablet-7': { width: 340, height: 540, borderRadius: 16, borderWidth: 6, notchType: 'camera' },
 }
@@ -47,7 +47,8 @@ export const DeviceMockup = ({ className, scale = 1 }: DeviceMockupProps) => {
                 className="absolute inset-0 overflow-hidden transition-all duration-500"
                 style={{
                     borderRadius: dims.borderRadius * scale,
-                    border: `${dims.borderWidth * scale}px solid ${colors.border}`,
+                    border: `${2 * scale}px solid ${colors.border}`,
+                    padding: `${(dims.borderWidth - 2) * scale}px`,
                     background: '#000',
                     boxShadow: `
                         inset 0 0 0 ${1 * scale}px ${colors.highlight},
@@ -61,7 +62,7 @@ export const DeviceMockup = ({ className, scale = 1 }: DeviceMockupProps) => {
                     <div
                         className="absolute left-1/2 -translate-x-1/2 bg-black z-30 flex justify-center items-center"
                         style={{
-                            top: 8 * scale,
+                            top: (8 + dims.borderWidth - 2) * scale,
                             height: 28 * scale,
                             width: 100 * scale,
                             borderRadius: 20 * scale,
@@ -81,7 +82,7 @@ export const DeviceMockup = ({ className, scale = 1 }: DeviceMockupProps) => {
                     <div
                         className="absolute left-1/2 -translate-x-1/2 top-0 bg-black z-30"
                         style={{
-                            height: 24 * scale,
+                            height: (24 + dims.borderWidth - 2) * scale,
                             width: 140 * scale,
                             borderBottomLeftRadius: 16 * scale,
                             borderBottomRightRadius: 16 * scale,
@@ -89,12 +90,14 @@ export const DeviceMockup = ({ className, scale = 1 }: DeviceMockupProps) => {
                     />
                 )}
 
-                {/* iPad Front Camera (small dot at top center) */}
+                {/* Camera Hole/Dot */}
                 {dims.notchType === 'camera' && (
                     <div
                         className="absolute left-1/2 -translate-x-1/2 z-30 rounded-full"
                         style={{
-                            top: 6 * scale,
+                            top: isAppleTablet
+                                ? ((dims.borderWidth - 2 - 8) / 2) * scale // Center in the black iPad bezel
+                                : (8 + dims.borderWidth - 2) * scale, // Float inside the screen for Android
                             width: 8 * scale,
                             height: 8 * scale,
                             background: 'radial-gradient(circle, #1a1a2e 40%, #0d0d1a 100%)',
@@ -142,7 +145,7 @@ export const DeviceMockup = ({ className, scale = 1 }: DeviceMockupProps) => {
                     <div
                         className="absolute left-1/2 -translate-x-1/2 rounded-full"
                         style={{
-                            bottom: 8 * scale,
+                            bottom: (8 + dims.borderWidth - 2) * scale,
                             width: 140 * scale,
                             height: 4 * scale,
                             background: 'rgba(255,255,255,0.5)',
@@ -157,6 +160,10 @@ export const DeviceMockup = ({ className, scale = 1 }: DeviceMockupProps) => {
                     className="absolute inset-0 bg-gradient-to-tr from-white/[0.03] via-transparent to-white/[0.08] pointer-events-none z-40"
                     style={{
                         borderRadius: (dims.borderRadius - dims.borderWidth) * scale,
+                        top: (dims.borderWidth - 2) * scale,
+                        left: (dims.borderWidth - 2) * scale,
+                        right: (dims.borderWidth - 2) * scale,
+                        bottom: (dims.borderWidth - 2) * scale,
                     }}
                 />
             </div>
