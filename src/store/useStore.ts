@@ -72,6 +72,12 @@ interface AppState {
     setAspectRatio: (ratio: AspectRatio) => void
     isExporting: boolean
     setIsExporting: (exporting: boolean) => void
+    /** Full intro → scenes → outro preview in the stage (no recording). */
+    isFullCyclePreview: boolean
+    setIsFullCyclePreview: (preview: boolean) => void
+    /** Measured scroll segment + tail hold per scene id (updated from PhoneMockup). */
+    sceneScrollSecondsById: Record<string, number>
+    setSceneScrollSecondsById: (sceneId: string, seconds: number) => void
     animationFinished: boolean
     setAnimationFinished: (finished: boolean) => void
 
@@ -337,6 +343,13 @@ export const useStore = create<AppState>((set) => ({
 
     isExporting: false,
     setIsExporting: (isExporting) => set({ isExporting }),
+    isFullCyclePreview: false,
+    setIsFullCyclePreview: (isFullCyclePreview) => set({ isFullCyclePreview }),
+    sceneScrollSecondsById: {},
+    setSceneScrollSecondsById: (sceneId, seconds) =>
+        set((state) => ({
+            sceneScrollSecondsById: { ...state.sceneScrollSecondsById, [sceneId]: seconds },
+        })),
     animationFinished: false,
     setAnimationFinished: (animationFinished) => set({ animationFinished }),
 

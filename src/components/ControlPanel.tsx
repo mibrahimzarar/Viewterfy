@@ -1,14 +1,54 @@
 
 import { useDropzone } from 'react-dropzone'
-import { useCallback, useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 import { useStore, type PhoneColor } from '../store/useStore'
 import { AudioPanel } from './AudioPanel'
 import { clsx } from 'clsx'
-import { Upload, X, Smartphone, Type, Settings, Download, CircleDot, RotateCcw, Palette, Play, Pause, Film, Sparkles, Image, Maximize2 } from 'lucide-react'
+import { Upload, X, Smartphone, Type, Settings, Download, CircleDot, RotateCcw, Palette, Play, Pause, Film, Sparkles, Image, Maximize2, Clapperboard, Square } from 'lucide-react'
 import { GenericBackgroundPicker } from './GenericBackgroundPicker'
 
 interface ControlPanelProps {
     onClose?: () => void
+}
+
+const DEFAULT_SCENE_SECONDS = 3
+
+function formatFullCycleDuration(totalSeconds: number): string {
+    if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) return '—'
+    const rounded = Math.round(totalSeconds)
+    const m = Math.floor(rounded / 60)
+    const s = rounded % 60
+    if (m === 0) return `${s}s`
+    return `${m}m ${s.toString().padStart(2, '0')}s`
+}
+
+function estimateFullCycleSeconds(
+    scenes: { id: string }[],
+    showIntro: boolean,
+    showOutro: boolean,
+    sceneScrollSecondsById: Record<string, number>,
+): number {
+    const INTRO_S = 3
+    const OUTRO_S = 4
+    const INTRO_HANDOFF = 0.8
+    const BETWEEN_SCENES = 0.9
+    const OUTRO_ENTRY = 0.5
+    const END_FADE = 1
+    let t = 0
+    if (showIntro) {
+        t += INTRO_S
+        if (scenes.length > 0) t += INTRO_HANDOFF
+    }
+    scenes.forEach((scene, i) => {
+        t += sceneScrollSecondsById[scene.id] ?? DEFAULT_SCENE_SECONDS
+        if (i < scenes.length - 1) t += BETWEEN_SCENES
+    })
+    if (showOutro) {
+        if (scenes.length > 0) t += OUTRO_ENTRY
+        t += OUTRO_S
+    }
+    t += END_FADE
+    return t
 }
 
 export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
@@ -40,11 +80,12 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
     const [recordingExtension, setRecordingExtension] = useState<'mp4' | 'webm'>('webm')
     const mediaRecorderRef = useRef<MediaRecorder | null>(null)
     const chunksRef = useRef<Blob[]>([])
+    const previewResumeSceneIdRef = useRef<string | null>(null)
 
     const getExportStageDimensions = useCallback(() => {
         const viewportWidth = window.innerWidth
         const viewportHeight = window.innerHeight
-        const padding = 8
+        const padding = 0
         const maxWidth = Math.max(320, viewportWidth - padding * 2)
         const maxHeight = Math.max(320, viewportHeight - padding * 2)
 
@@ -68,6 +109,8 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
     // === Recording Logic (unchanged) ===
     const startRegionRecording = async () => {
         try {
+            useStore.getState().setIsFullCyclePreview(false)
+            previewResumeSceneIdRef.current = null
             setMediaBlobUrl(null)
             chunksRef.current = []
             const exportDimensions = getExportStageDimensions()
@@ -112,8 +155,11 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
                 if (videoTrack && (videoTrack as any).cropTo) await (videoTrack as any).cropTo(cropTarget)
             }
             const mimeTypeCandidates = [
+                { mimeType: 'video/webm;codecs=av1,opus', extension: 'webm' as const },
+                { mimeType: 'video/webm;codecs=vp9,opus', extension: 'webm' as const },
                 { mimeType: 'video/webm;codecs=vp9', extension: 'webm' as const },
-                { mimeType: 'video/webm;codecs=vp8', extension: 'webm' as const },
+                { mimeType: 'video/webm;codecs=vp8,opus', extension: 'webm' as const },
+                { mimeType: 'video/mp4;codecs=h264', extension: 'mp4' as const },
                 { mimeType: 'video/mp4', extension: 'mp4' as const },
                 { mimeType: 'video/webm', extension: 'webm' as const },
             ]
@@ -122,7 +168,8 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
             setRecordingExtension(selectedFormat.extension)
             const recorder = new MediaRecorder(stream, {
                 mimeType: selectedFormat.mimeType,
-                videoBitsPerSecond: 80000000,
+                videoBitsPerSecond: 120000000,
+                audioBitsPerSecond: 320000,
             })
             mediaRecorderRef.current = recorder
             recorder.ondataavailable = (event) => { if (event.data.size > 0) chunksRef.current.push(event.data) }
@@ -158,13 +205,59 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
         document.body.style.cursor = ''
     }, [])
 
-    const { animationFinished, setAnimationFinished, setIsExporting } = useStore()
+    const { animationFinished, setAnimationFinished, setIsExporting, isFullCyclePreview, setIsFullCyclePreview, sceneScrollSecondsById } = useStore()
+
+    const estimatedFullCycleSeconds = useMemo(
+        () => estimateFullCycleSeconds(scenes, showIntro, showOutro, sceneScrollSecondsById),
+        [scenes, showIntro, showOutro, sceneScrollSecondsById],
+    )
+
+    const endFullPreviewAndRestore = useCallback(() => {
+        const resume = previewResumeSceneIdRef.current
+        previewResumeSceneIdRef.current = null
+        setIsFullCyclePreview(false)
+        setAnimationFinished(false)
+        setIsPlaying(false)
+        useStore.getState().setFadeEffect('none')
+        if (!resume) return
+        const st = useStore.getState()
+        if (resume === 'INTRO' || resume === 'OUTRO') {
+            setActiveScene(resume)
+        } else if (st.scenes.some((s) => s.id === resume)) {
+            setActiveScene(resume)
+        } else {
+            setActiveScene(st.scenes[0].id)
+        }
+    }, [setActiveScene, setAnimationFinished, setIsFullCyclePreview, setIsPlaying])
+
+    const toggleFullCyclePreview = useCallback(() => {
+        if (isRecording) return
+        const st = useStore.getState()
+        if (st.isFullCyclePreview) {
+            endFullPreviewAndRestore()
+            return
+        }
+        previewResumeSceneIdRef.current = st.activeSceneId
+        setIsFullCyclePreview(true)
+        setAnimationFinished(false)
+        setIsPlaying(false)
+        st.setFadeEffect('fadeIn')
+        st.setActiveScene(st.showIntro ? 'INTRO' : st.scenes[0].id)
+        st.triggerReset()
+        setTimeout(() => setIsPlaying(true), 1000)
+    }, [endFullPreviewAndRestore, isRecording, setAnimationFinished, setIsFullCyclePreview, setIsPlaying])
 
     useEffect(() => {
         if (!isRecording) return
         if (activeSceneId === 'INTRO') { const t = setTimeout(() => useStore.getState().setAnimationFinished(true), 3000); return () => clearTimeout(t) }
         if (activeSceneId === 'OUTRO') { const t = setTimeout(() => useStore.getState().setAnimationFinished(true), 4000); return () => clearTimeout(t) }
     }, [isRecording, activeSceneId])
+
+    useEffect(() => {
+        if (!isFullCyclePreview || isRecording) return
+        if (activeSceneId === 'INTRO') { const t = setTimeout(() => useStore.getState().setAnimationFinished(true), 3000); return () => clearTimeout(t) }
+        if (activeSceneId === 'OUTRO') { const t = setTimeout(() => useStore.getState().setAnimationFinished(true), 4000); return () => clearTimeout(t) }
+    }, [isFullCyclePreview, isRecording, activeSceneId])
 
     useEffect(() => {
         if (!isRecording || !animationFinished) return
@@ -174,6 +267,19 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
         if (idx !== -1 && idx < scenes.length - 1) { setAnimationFinished(false); setIsPlaying(false); setTimeout(() => { setActiveScene(scenes[idx + 1].id); setTimeout(() => { triggerReset(); setTimeout(() => setIsPlaying(true), 100) }, 500) }, 300) }
         else { setAnimationFinished(false); setIsPlaying(false); if (showOutro) setTimeout(() => setActiveScene('OUTRO'), 500); else { useStore.getState().setFadeEffect('fadeOut'); setTimeout(() => { stopRegionRecording(); setIsExporting(false); useStore.getState().setLockedDimensions(null); useStore.getState().setFadeEffect('none') }, 1000) } }
     }, [isRecording, animationFinished, activeSceneId, scenes, showOutro, stopRegionRecording, setIsExporting, setAnimationFinished, setIsPlaying, setActiveScene, triggerReset])
+
+    useEffect(() => {
+        if (!isFullCyclePreview || isRecording || !animationFinished) return
+        if (activeSceneId === 'INTRO') { setAnimationFinished(false); setIsPlaying(false); setActiveScene(scenes[0].id); triggerReset(); setTimeout(() => setIsPlaying(true), 500); return }
+        if (activeSceneId === 'OUTRO') {
+            useStore.getState().setFadeEffect('fadeOut')
+            setTimeout(() => { endFullPreviewAndRestore() }, 1000)
+            return
+        }
+        const idx = scenes.findIndex(s => s.id === activeSceneId)
+        if (idx !== -1 && idx < scenes.length - 1) { setAnimationFinished(false); setIsPlaying(false); setTimeout(() => { setActiveScene(scenes[idx + 1].id); setTimeout(() => { triggerReset(); setTimeout(() => setIsPlaying(true), 100) }, 500) }, 300) }
+        else { setAnimationFinished(false); setIsPlaying(false); if (showOutro) setTimeout(() => setActiveScene('OUTRO'), 500); else { useStore.getState().setFadeEffect('fadeOut'); setTimeout(() => { endFullPreviewAndRestore() }, 1000) } }
+    }, [isFullCyclePreview, isRecording, animationFinished, activeSceneId, scenes, showOutro, endFullPreviewAndRestore, setAnimationFinished, setIsPlaying, setActiveScene, triggerReset])
 
     const onDrop = useCallback((acceptedFiles: File[]) => addScreenshots(acceptedFiles.map(file => URL.createObjectURL(file))), [addScreenshots])
     const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, accept: { 'image/*': [] } })
@@ -268,16 +374,53 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
                 </section>
 
                 {/* === TIMELINE / SCENES === */}
-                <section>
-                    <div className="flex items-center justify-between mb-3">
+                <section className="space-y-2.5">
+                    <div className="flex items-center justify-between">
                         <h3 className="text-xs font-semibold uppercase tracking-wider text-white/40 flex items-center gap-2">
                             <Film size={14} /> Timeline
                         </h3>
-                        <button onClick={addScene} className="text-[10px] font-medium text-primary hover:text-primary/80 transition">+ Add Scene</button>
+                        <button type="button" onClick={addScene} disabled={isFullCyclePreview} className={clsx("text-[10px] font-medium text-primary transition", isFullCyclePreview ? "opacity-40 pointer-events-none" : "hover:text-primary/80")}>+ Add Scene</button>
                     </div>
 
+                    <button
+                        type="button"
+                        onClick={toggleFullCyclePreview}
+                        disabled={isRecording}
+                        className={clsx(
+                            "group relative w-full overflow-hidden rounded-xl border px-4 py-2.5 text-sm font-medium transition-all duration-300",
+                            isRecording && "cursor-not-allowed opacity-40",
+                            isFullCyclePreview
+                                ? "border-fuchsia-400/35 bg-fuchsia-500/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+                                : "border-white/10 bg-white/[0.04] text-white/90 hover:border-white/18 hover:bg-white/[0.07]"
+                        )}
+                    >
+                        <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-violet-600/0 via-violet-500/12 to-fuchsia-600/0 opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+                        <span className="relative flex w-full items-center justify-between gap-3">
+                            <span className="flex min-w-0 flex-1 items-center justify-center gap-2">
+                                {isFullCyclePreview ? (
+                                    <>
+                                        <Square size={15} className="shrink-0 text-fuchsia-200" />
+                                        <span className="truncate">Stop preview</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Clapperboard size={16} className="shrink-0 text-violet-200" />
+                                        <Play size={14} className="shrink-0 opacity-90" />
+                                        <span className="truncate">Preview full video</span>
+                                    </>
+                                )}
+                            </span>
+                            <span
+                                className="shrink-0 text-[11px] font-semibold tabular-nums tracking-tight text-white/45"
+                                title="Approximate full run: intro, all scenes, outro, and fades (visit each scene once for best accuracy)"
+                            >
+                                ~{formatFullCycleDuration(estimatedFullCycleSeconds)}
+                            </span>
+                        </span>
+                    </button>
+
                     {/* Scene Pills */}
-                    <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+                    <div className={clsx("flex gap-2 overflow-x-auto pb-1", isFullCyclePreview && "pointer-events-none opacity-55")} style={{ scrollbarWidth: 'none' }}>
                         {showIntro && (
                             <button onClick={() => setActiveScene('INTRO')} className={clsx("flex-shrink-0 px-4 py-2 rounded-full text-xs font-medium transition-all", activeSceneId === 'INTRO' ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white")}>
                                 ✨ Intro
@@ -480,7 +623,17 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
                     </div>
 
                     {!isRecording ? (
-                        <button onClick={startRegionRecording} className="w-full py-4 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-lg shadow-red-500/25 active:scale-[0.98]">
+                        <button
+                            type="button"
+                            onClick={startRegionRecording}
+                            disabled={isFullCyclePreview}
+                            className={clsx(
+                                "w-full py-4 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-lg shadow-red-500/25",
+                                isFullCyclePreview
+                                    ? "cursor-not-allowed opacity-45"
+                                    : "hover:from-red-600 hover:to-pink-600 active:scale-[0.98]"
+                            )}
+                        >
                             <CircleDot size={18} /> Generate Video
                         </button>
                     ) : (

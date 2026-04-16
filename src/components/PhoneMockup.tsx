@@ -44,7 +44,8 @@ interface PhoneMockupProps {
 }
 
 export const PhoneMockup = ({ scene, sceneId }: PhoneMockupProps) => {
-    const { isPlaying, aspectRatio, isExporting, setAnimationFinished, resetScrollSignal } = useStore()
+    const { isPlaying, aspectRatio, isExporting, isFullCyclePreview, setAnimationFinished, resetScrollSignal } = useStore()
+    const advanceAfterScroll = isExporting || isFullCyclePreview
     const { screenshots, phoneColor, scrollSpeed } = scene
     const frame = frameColors[phoneColor]
     const containerRef = useRef<HTMLDivElement>(null)
@@ -105,13 +106,24 @@ export const PhoneMockup = ({ scene, sceneId }: PhoneMockupProps) => {
         }
     }, [maxScroll, scrollSpeed, sceneId, useStore.getState().showIntro, useStore.getState().showOutro])
 
+    // Per-scene timing for full-cycle duration (scroll + post-scroll hold, matches export pacing).
+    useEffect(() => {
+        const pxPerSec = Math.max(10, scrollSpeed * 5)
+        if (maxScroll <= 0) {
+            useStore.getState().setSceneScrollSecondsById(sceneId, 1.2)
+            return
+        }
+        const scrollOnly = maxScroll / pxPerSec
+        useStore.getState().setSceneScrollSecondsById(sceneId, scrollOnly + 1)
+    }, [maxScroll, scrollSpeed, sceneId])
+
     // Handle Play/Pause and Auto-Scroll
     useEffect(() => {
         clearExportCompletionTimeout()
 
         if (maxScroll <= 0) {
-            if (isPlaying && isExporting) {
-                // If a scene has no measurable scroll, still advance export after a short hold.
+            if (isPlaying && advanceAfterScroll) {
+                // If a scene has no measurable scroll, still advance export/preview after a short hold.
                 exportCompletionTimeoutRef.current = window.setTimeout(() => {
                     setAnimationFinished(true)
                 }, 1200)
@@ -134,7 +146,7 @@ export const PhoneMockup = ({ scene, sceneId }: PhoneMockupProps) => {
                 }
             }).then(() => {
                 // Animation completed
-                if (isExporting) {
+                if (advanceAfterScroll) {
                     exportCompletionTimeoutRef.current = window.setTimeout(() => {
                         setAnimationFinished(true)
                     }, 1000)
@@ -150,7 +162,7 @@ export const PhoneMockup = ({ scene, sceneId }: PhoneMockupProps) => {
             controls.stop()
             clearExportCompletionTimeout()
         }
-    }, [isPlaying, maxScroll, scrollSpeed, controls, y, isExporting, setAnimationFinished, sceneId])
+    }, [isPlaying, maxScroll, scrollSpeed, controls, y, advanceAfterScroll, setAnimationFinished, sceneId])
 
     // Reset when content changes or explicit reset signal
     useEffect(() => {

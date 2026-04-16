@@ -183,22 +183,26 @@ export const Layout = () => {
 
             {/* Main Stage Area */}
             <main className={clsx(
-                "flex-1 relative flex items-center justify-center bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800",
+                "flex-1 relative flex items-center justify-center",
+                isExporting
+                    ? "bg-black"
+                    : "bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800",
                 isExporting ? "p-0" : "pt-36 md:pt-0"
             )}>
 
                 {/* Ambient Background Glow - Elegant Light Colors */}
-                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                {!isExporting && <div className="absolute inset-0 overflow-hidden pointer-events-none">
                     <div className="absolute top-1/4 left-1/3 w-[500px] h-[500px] bg-violet-400/20 rounded-full blur-[150px] opacity-70" />
                     <div className="absolute bottom-1/3 right-1/4 w-[400px] h-[400px] bg-rose-300/15 rounded-full blur-[120px] opacity-60" />
                     <div className="absolute top-1/2 right-1/3 w-[300px] h-[300px] bg-sky-300/15 rounded-full blur-[100px] opacity-50" />
-                </div>
+                </div>}
 
                 {/* Canvas Stage - What gets recorded */}
                 <div
                     id="canvas-stage"
                     className={clsx(
-                        "relative shadow-2xl transition-all duration-500 ease-in-out overflow-hidden gradient-border",
+                        "relative transition-all duration-500 ease-in-out overflow-hidden",
+                        isExporting ? "shadow-none" : "shadow-2xl gradient-border",
                         isExporting
                             ? "rounded-none"
                             : aspectRatio === '1:1'
