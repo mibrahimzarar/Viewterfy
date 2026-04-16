@@ -30,11 +30,21 @@ const getBackgroundStyle = (scene: Scene) => {
 }
 
 export const Layout = () => {
-    const { scenes, activeSceneId, lockedDimensions, aspectRatio, fadeEffect } = useStore()
+    const { scenes, activeSceneId, lockedDimensions, aspectRatio, fadeEffect, isExporting } = useStore()
     const activeScene = scenes.find(s => s.id === activeSceneId) || scenes[0]
-    const { headline, subtitle } = activeScene
+    const { headline, subtitle, headlineScale, subtitleScale, mockupScale } = activeScene
 
     const hasText = headline.trim().length > 0 || subtitle.trim().length > 0
+    const headingFontSize = aspectRatio === '1:1'
+        ? `calc(clamp(1rem, 3vw, 2rem) * ${headlineScale})`
+        : `calc(clamp(1rem, 2.4vw, 1.5rem) * ${headlineScale})`
+    const subtitleFontSize = aspectRatio === '1:1'
+        ? `calc(clamp(0.65rem, 1.8vw, 1rem) * ${subtitleScale})`
+        : `calc(clamp(0.7rem, 1.5vw, 0.9rem) * ${subtitleScale})`
+    const baseMockupScale = aspectRatio === '1:1'
+        ? (hasText ? 0.7 : 0.85)
+        : 0.55
+    const effectiveMockupScale = baseMockupScale * mockupScale
 
     // Mobile sidebar state
     const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -64,10 +74,16 @@ export const Layout = () => {
     if (!mounted) return null
 
     return (
-        <div className="flex h-screen w-full bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 text-white overflow-hidden font-sans selection:bg-primary/30">
+        <div className={clsx(
+            "flex h-screen w-full bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 text-white overflow-hidden font-sans selection:bg-primary/30",
+            isExporting && "cursor-none"
+        )}>
 
             {/* Mobile Header */}
-            <header className="md:hidden fixed top-0 left-0 right-0 z-50 bg-black/40 backdrop-blur-xl border-b border-white/10">
+            <header className={clsx(
+                "md:hidden fixed top-0 left-0 right-0 z-50 bg-black/40 backdrop-blur-xl border-b border-white/10 transition-opacity",
+                isExporting && "opacity-0 pointer-events-none"
+            )}>
                 <div className="px-4 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <img src="/images/Logo.png" alt="Viewterfy" className="w-9 h-9 rounded-xl shadow-lg" />
@@ -94,7 +110,7 @@ export const Layout = () => {
 
             {/* Mobile Backdrop */}
             <AnimatePresence>
-                {sidebarOpen && (
+                {sidebarOpen && !isExporting && (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -108,13 +124,16 @@ export const Layout = () => {
 
             {/* Mobile Sidebar - Only on mobile */}
             <AnimatePresence>
-                {sidebarOpen && (
+                {(sidebarOpen || isExporting) && (
                     <motion.aside
-                        initial={{ x: '-100%' }}
-                        animate={{ x: 0 }}
+                        initial={isExporting ? false : { x: '-100%' }}
+                        animate={isExporting ? { x: '-120%' } : { x: 0 }}
                         exit={{ x: '-100%' }}
                         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                        className="fixed z-50 h-full w-[320px] border-r border-white/10 bg-black/30 backdrop-blur-xl shadow-2xl flex-col md:hidden flex"
+                        className={clsx(
+                            "fixed z-50 h-full w-[320px] border-r border-white/10 bg-black/30 backdrop-blur-xl shadow-2xl flex-col md:hidden flex",
+                            isExporting && "pointer-events-none opacity-0"
+                        )}
                     >
                         {/* Mobile close button */}
                         <div className="flex items-center justify-between p-4 border-b border-white/10">
@@ -138,7 +157,12 @@ export const Layout = () => {
             </AnimatePresence>
 
             {/* Desktop Sidebar - Only on desktop */}
-            <aside className="hidden md:flex w-[380px] border-r border-white/10 bg-black/30 backdrop-blur-xl z-20 shadow-2xl flex-shrink-0 flex-col">
+            <aside className={clsx(
+                "hidden md:flex border-r border-white/10 bg-black/30 backdrop-blur-xl z-20 shadow-2xl flex-col transition-opacity duration-300",
+                isExporting
+                    ? "fixed left-0 top-0 h-screen w-[380px] opacity-0 pointer-events-none"
+                    : "relative w-[380px] flex-shrink-0"
+            )}>
                 {/* Branding Header */}
                 <div className="p-5 border-b border-white/10 flex items-center gap-3 gradient-mesh">
                     <div className="relative">
@@ -158,7 +182,10 @@ export const Layout = () => {
             </aside>
 
             {/* Main Stage Area */}
-            <main className="flex-1 relative flex items-center justify-center bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 pt-36 md:pt-0">
+            <main className={clsx(
+                "flex-1 relative flex items-center justify-center bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800",
+                isExporting ? "p-0" : "pt-36 md:pt-0"
+            )}>
 
                 {/* Ambient Background Glow - Elegant Light Colors */}
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -172,7 +199,11 @@ export const Layout = () => {
                     id="canvas-stage"
                     className={clsx(
                         "relative shadow-2xl transition-all duration-500 ease-in-out overflow-hidden gradient-border",
-                        aspectRatio === '1:1' ? "rounded-2xl md:rounded-3xl" : "rounded-[1.5rem] md:rounded-[2.5rem]",
+                        isExporting
+                            ? "rounded-none"
+                            : aspectRatio === '1:1'
+                                ? "rounded-2xl md:rounded-3xl"
+                                : "rounded-[1.5rem] md:rounded-[2.5rem]",
                         !lockedDimensions && (aspectRatio === '1:1'
                             ? "aspect-square w-[92%] md:w-auto md:h-[88%] max-w-[400px] md:max-w-none md:max-h-[800px]"
                             : "aspect-[9/16] h-[70vh] md:h-[92%] w-auto md:w-auto max-w-[90vw] md:max-w-none")
@@ -232,7 +263,7 @@ export const Layout = () => {
                                     "w-full h-full flex relative",
                                     aspectRatio === '9:16'
                                         ? (hasText ? "flex-col items-center justify-center -translate-y-12 md:-translate-y-16 gap-3 md:gap-4" : "flex-col items-center justify-center")
-                                        : (hasText ? "flex-col md:flex-row items-center justify-center p-3 md:p-8 gap-0 md:gap-0" : "flex-row items-center justify-center p-4 md:p-8")
+                                        : (hasText ? "flex-col md:flex-row items-center md:items-center justify-center md:justify-between px-4 md:px-12 py-3 md:py-8 gap-0 md:gap-6" : "flex-row items-center justify-center p-4 md:p-8")
                                 )}
                             >
 
@@ -241,22 +272,20 @@ export const Layout = () => {
                                     <div className={clsx(
                                         "z-10 flex flex-col justify-center",
                                         aspectRatio === '1:1'
-                                            ? "order-2 md:order-1 text-center md:text-left items-center md:items-start w-full md:w-[290px] px-4 md:px-0 md:pr-4 md:ml-12 space-y-1"
+                                            ? "order-2 md:order-1 text-center md:text-left items-center md:items-start w-full md:max-w-[290px] px-4 md:px-0 space-y-1"
                                             : "order-2 text-center items-center px-3 md:px-4 max-w-[85%] md:max-w-[90%] -mt-24 md:-mt-32 space-y-1.5 md:space-y-2"
                                     )}>
                                         {headline && (
                                             <h1 className={clsx(
                                                 "font-bold leading-tight tracking-tight drop-shadow-lg",
-                                                aspectRatio === '1:1' ? "text-base md:text-3xl" : "text-lg md:text-2xl"
-                                            )}>
+                                            )} style={{ fontSize: headingFontSize }}>
                                                 {headline}
                                             </h1>
                                         )}
                                         {subtitle && (
                                             <p className={clsx(
-                                                "font-medium text-white/80 drop-shadow-md",
-                                                aspectRatio === '1:1' ? "text-[10px] md:text-base" : "text-[11px] md:text-sm"
-                                            )}>
+                                                "font-medium text-white/80 drop-shadow-md"
+                                            )} style={{ fontSize: subtitleFontSize }}>
                                                 {subtitle}
                                             </p>
                                         )}
@@ -267,10 +296,10 @@ export const Layout = () => {
                                 <div className={clsx(
                                     "relative z-0 transition-all duration-500 flex items-center justify-center",
                                     aspectRatio === '1:1'
-                                        ? (hasText ? "order-1 md:order-2 flex-shrink-0 scale-[0.5] md:scale-[0.7]" : "scale-[0.6] md:scale-[0.85]")
-                                        : "order-1 flex-1 scale-[0.38] md:scale-[0.55]"
-                                )}>
-                                    <PhoneMockup />
+                                        ? (hasText ? "order-1 md:order-2 flex-shrink-0 md:ml-auto" : "")
+                                        : "order-1 flex-1"
+                                )} style={{ transform: `scale(${effectiveMockupScale})` }}>
+                                    <PhoneMockup scene={activeScene} sceneId={activeSceneId} />
                                 </div>
 
                             </motion.div>

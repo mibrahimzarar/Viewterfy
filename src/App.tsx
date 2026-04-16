@@ -3,13 +3,15 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Layout } from './components/Layout'
 import { FeatureGraphicEditor } from './components/FeatureGraphic'
 import { ModeSwitcher, type AppMode } from './components/ModeSwitcher'
+import { useStore } from './store/useStore'
 
 function App() {
   const [mode, setMode] = useState<AppMode>('video')
+  const isExporting = useStore((state) => state.isExporting)
 
   return (
     <>
-      <ModeSwitcher mode={mode} onModeChange={setMode} />
+      {!isExporting && <ModeSwitcher mode={mode} onModeChange={setMode} />}
       <AnimatePresence mode="wait">
         {mode === 'video' ? (
           <motion.div

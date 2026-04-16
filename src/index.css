@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* Import Inter font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 @theme {
   --color-background: hsl(225 15% 8%);
@@ -20,9 +22,6 @@
 
   --radius: 0.75rem;
 }
-
-/* Import Inter font */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 html {
   font-family: 'Inter', system-ui, sans-serif;

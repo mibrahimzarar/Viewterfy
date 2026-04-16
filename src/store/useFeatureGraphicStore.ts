@@ -28,6 +28,19 @@ export const PRESET_GRADIENTS = [
     { id: 'electric', name: 'Electric', value: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)' },
     { id: 'nord', name: 'Nordic', value: 'linear-gradient(135deg, #2C3E50 0%, #4CA1AF 100%)' },
     { id: 'lavender', name: 'Lavender', value: 'linear-gradient(135deg, #E8CBC0 0%, #636FA4 100%)' },
+    // Luxury / Refined Collection
+    { id: 'obsidian', name: 'Obsidian Silk', value: 'linear-gradient(145deg, #0b0f14 0%, #1b2430 38%, #05070a 100%)' },
+    { id: 'champagne', name: 'Champagne Mist', value: 'linear-gradient(145deg, #f5eadf 0%, #dcc6a8 42%, #8e7556 100%)' },
+    { id: 'royal-noir', name: 'Royal Noir', value: 'linear-gradient(145deg, #0f1020 0%, #2a1f45 42%, #06070d 100%)' },
+    { id: 'emerald-velour', name: 'Emerald Velour', value: 'linear-gradient(145deg, #081c15 0%, #1b4332 40%, #0b0f10 100%)' },
+    { id: 'pearl-night', name: 'Pearl Night', value: 'linear-gradient(145deg, #edf2f4 0%, #8d99ae 35%, #1d3557 100%)' },
+    { id: 'bronze-haze', name: 'Bronze Haze', value: 'linear-gradient(145deg, #2d1e17 0%, #8c5e3c 45%, #f1d2b3 100%)' },
+    { id: 'sapphire-veil', name: 'Sapphire Veil', value: 'linear-gradient(145deg, #061a40 0%, #1b4965 42%, #cae9ff 100%)' },
+    { id: 'amethyst-smoke', name: 'Amethyst Smoke', value: 'linear-gradient(145deg, #1b1028 0%, #5b4b8a 40%, #d6c6f5 100%)' },
+    { id: 'auric-dusk', name: 'Auric Dusk', value: 'linear-gradient(145deg, #111827 0%, #6b5b2a 46%, #f7e7a1 100%)' },
+    { id: 'moonstone', name: 'Moonstone', value: 'linear-gradient(145deg, #dfe7ef 0%, #94a3b8 36%, #334155 100%)' },
+    { id: 'velour-rose', name: 'Velour Rose', value: 'linear-gradient(145deg, #2a1118 0%, #8f4b62 40%, #f3d4dd 100%)' },
+    { id: 'deep-lagoon', name: 'Deep Lagoon', value: 'linear-gradient(145deg, #031926 0%, #0a4f5c 42%, #9ee7d8 100%)' },
 ]
 
 // Export Ratio Presets - Google Play & iOS App Store Requirements

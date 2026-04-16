@@ -1,15 +1,63 @@
 import { motion, useAnimation, useMotionValue } from 'framer-motion'
 import { clsx } from 'clsx'
-import { useStore } from '../store/useStore'
+import { useStore, type Scene } from '../store/useStore'
 import { useEffect, useRef, useState } from 'react'
 
-export const PhoneMockup = () => {
-    const { isPlaying, aspectRatio, isExporting, setAnimationFinished, resetScrollSignal, scenes, activeSceneId } = useStore()
-    const activeScene = scenes.find(s => s.id === activeSceneId) || scenes[0]
-    const { screenshots, phoneColor, scrollSpeed } = activeScene
+const frameColors = {
+    black: {
+        border: '#17191d',
+        frameBg: 'linear-gradient(160deg, #3c434b 0%, #1f2329 18%, #0d0f12 52%, #262b31 100%)',
+        highlight: 'rgba(255,255,255,0.12)',
+        edge: 'rgba(90,98,110,0.38)',
+        shadow: 'rgba(0,0,0,0.58)',
+        glow: 'rgba(70,80,95,0.22)',
+    },
+    silver: {
+        border: '#b9c0c8',
+        frameBg: 'linear-gradient(160deg, #f2f4f6 0%, #cfd5db 22%, #9ea6af 55%, #e4e8ec 100%)',
+        highlight: 'rgba(255,255,255,0.72)',
+        edge: 'rgba(118,128,140,0.28)',
+        shadow: 'rgba(60,72,88,0.28)',
+        glow: 'rgba(210,218,228,0.24)',
+    },
+    gold: {
+        border: '#b99663',
+        frameBg: 'linear-gradient(160deg, #f2dfbe 0%, #d8bc8c 22%, #aa814e 58%, #ead5b2 100%)',
+        highlight: 'rgba(255,248,220,0.42)',
+        edge: 'rgba(126,92,48,0.24)',
+        shadow: 'rgba(86,62,28,0.28)',
+        glow: 'rgba(201,166,110,0.22)',
+    },
+    blue: {
+        border: '#43566b',
+        frameBg: 'linear-gradient(160deg, #8395a9 0%, #5f7185 20%, #314050 56%, #74879c 100%)',
+        highlight: 'rgba(220,232,244,0.24)',
+        edge: 'rgba(52,66,84,0.28)',
+        shadow: 'rgba(18,28,41,0.34)',
+        glow: 'rgba(92,116,145,0.22)',
+    },
+} as const
+
+interface PhoneMockupProps {
+    scene: Scene
+    sceneId: string
+}
+
+export const PhoneMockup = ({ scene, sceneId }: PhoneMockupProps) => {
+    const { isPlaying, aspectRatio, isExporting, setAnimationFinished, resetScrollSignal } = useStore()
+    const { screenshots, phoneColor, scrollSpeed } = scene
+    const frame = frameColors[phoneColor]
     const containerRef = useRef<HTMLDivElement>(null)
     const contentRef = useRef<HTMLDivElement>(null)
     const [maxScroll, setMaxScroll] = useState(0)
+    const exportCompletionTimeoutRef = useRef<number | null>(null)
+
+    const clearExportCompletionTimeout = () => {
+        if (exportCompletionTimeoutRef.current !== null) {
+            window.clearTimeout(exportCompletionTimeoutRef.current)
+            exportCompletionTimeoutRef.current = null
+        }
+    }
 
     // Measure scroll distance
     useEffect(() => {
@@ -55,11 +103,21 @@ export const PhoneMockup = () => {
         if (Math.abs(totalDuration - state.videoDuration) > 0.1) {
             state.setVideoDuration(totalDuration)
         }
-    }, [maxScroll, scrollSpeed, activeScene, useStore.getState().showIntro, useStore.getState().showOutro])
+    }, [maxScroll, scrollSpeed, sceneId, useStore.getState().showIntro, useStore.getState().showOutro])
 
     // Handle Play/Pause and Auto-Scroll
     useEffect(() => {
-        if (maxScroll <= 0) return
+        clearExportCompletionTimeout()
+
+        if (maxScroll <= 0) {
+            if (isPlaying && isExporting) {
+                // If a scene has no measurable scroll, still advance export after a short hold.
+                exportCompletionTimeoutRef.current = window.setTimeout(() => {
+                    setAnimationFinished(true)
+                }, 1200)
+            }
+            return
+        }
 
         if (isPlaying) {
             const currentY = y.get()
@@ -77,7 +135,7 @@ export const PhoneMockup = () => {
             }).then(() => {
                 // Animation completed
                 if (isExporting) {
-                    setTimeout(() => {
+                    exportCompletionTimeoutRef.current = window.setTimeout(() => {
                         setAnimationFinished(true)
                     }, 1000)
                 }
@@ -88,37 +146,56 @@ export const PhoneMockup = () => {
         } else {
             controls.stop()
         }
-    }, [isPlaying, maxScroll, scrollSpeed, controls, y, isExporting, setAnimationFinished])
+        return () => {
+            controls.stop()
+            clearExportCompletionTimeout()
+        }
+    }, [isPlaying, maxScroll, scrollSpeed, controls, y, isExporting, setAnimationFinished, sceneId])
 
     // Reset when content changes or explicit reset signal
     useEffect(() => {
         controls.stop()
+        clearExportCompletionTimeout()
         y.set(0)
-    }, [screenshots, aspectRatio, y, resetScrollSignal, controls])
+    }, [screenshots, aspectRatio, y, resetScrollSignal, controls, sceneId])
+
+    useEffect(() => () => clearExportCompletionTimeout(), [])
 
     return (
         <div className="relative group">
             {/* Phone Frame */}
             <div
-                className={clsx(
-                    "relative w-[300px] h-[600px] rounded-[3rem] border-[8px] bg-black shadow-2xl overflow-hidden z-20 transition-colors duration-500",
-                    {
-                        'border-gray-900': phoneColor === 'black',
-                        'border-slate-300': phoneColor === 'silver',
-                        'border-yellow-600/50': phoneColor === 'gold',
-                        'border-blue-900': phoneColor === 'blue',
-                    }
-                )}
+                className="relative rounded-[3rem] border-[8px] overflow-hidden z-20 transition-all duration-500"
                 style={{
+                    width: 300,
+                    height: 600,
+                    borderColor: frame.border,
+                    background: frame.frameBg,
                     boxShadow: `
-                0 0 0 2px ${phoneColor === 'black' ? '#333' : phoneColor === 'silver' ? '#fff' : '#d4af37'}, 
-                0 20px 50px -10px rgba(0,0,0,0.5)
-            `
+                inset 0 0 0 1px ${frame.highlight},
+                inset 0 0 0 2px ${frame.edge},
+                0 20px 50px -10px ${frame.shadow}
+            `,
                 }}
             >
-                {/* Notch / Dynamic Island */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 h-7 w-32 bg-black rounded-b-2xl z-30 flex justify-center items-center">
-                    <div className="w-20 h-4 bg-black/50 rounded-full" />
+                {/* iPhone 15-style Dynamic Island */}
+                <div
+                    className="absolute left-1/2 -translate-x-1/2 bg-black z-30 flex justify-center items-center"
+                    style={{
+                        top: 8,
+                        height: 28,
+                        width: 100,
+                        borderRadius: 20,
+                        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+                    }}
+                >
+                    <div
+                        className="bg-black/50 rounded-full"
+                        style={{
+                            width: 72,
+                            height: 16,
+                        }}
+                    />
                 </div>
 
                 {/* Screen Content */}
@@ -157,13 +234,8 @@ export const PhoneMockup = () => {
             <div
                 className={clsx(
                     "absolute inset-0 blur-3xl opacity-40 -z-10 transition-colors duration-1000",
-                    {
-                        'bg-blue-500/30': phoneColor === 'blue',
-                        'bg-yellow-500/20': phoneColor === 'gold',
-                        'bg-gray-500/20': phoneColor === 'silver',
-                        'bg-purple-500/20': phoneColor === 'black',
-                    }
                 )}
+                style={{ background: frame.glow }}
             />
         </div>
     )

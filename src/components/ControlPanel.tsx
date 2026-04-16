@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, useRef } from 'react'
 import { useStore, type PhoneColor } from '../store/useStore'
 import { AudioPanel } from './AudioPanel'
 import { clsx } from 'clsx'
-import { Upload, X, Smartphone, Type, Settings, Download, CircleDot, RotateCcw, Palette, Play, Pause, Film, Sparkles, Image } from 'lucide-react'
+import { Upload, X, Smartphone, Type, Settings, Download, CircleDot, RotateCcw, Palette, Play, Pause, Film, Sparkles, Image, Maximize2 } from 'lucide-react'
 import { GenericBackgroundPicker } from './GenericBackgroundPicker'
 
 interface ControlPanelProps {
@@ -16,35 +16,79 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
         setPhoneColor,
         scenes, activeSceneId, addScene, removeScene, setActiveScene,
         addScreenshots, removeScreenshot, updateHeadline, updateSubtitle,
+        setHeadlineScale, setSubtitleScale, setMockupScale,
         setScrollSpeed,
         aspectRatio, setAspectRatio,
         isPlaying, setIsPlaying,
         setBackgroundType, setBackgroundColor, setBackgroundGradient, setBackgroundPattern, setBackgroundImage,
         triggerReset,
-        showIntro, setShowIntro, introLogo, setIntroLogo, introTitle, setIntroTitle, introSubtitle, setIntroSubtitle,
-        showOutro, setShowOutro, outroQrCode, setOutroQrCode
+        showIntro, setShowIntro, introLogo, setIntroLogo, introTitle, setIntroTitle, introSubtitle, setIntroSubtitle, introBackground,
+        showOutro, setShowOutro, outroQrCode, setOutroQrCode, outroBackground
     } = useStore()
 
+    const activeBackground = activeSceneId === 'INTRO'
+        ? introBackground
+        : activeSceneId === 'OUTRO'
+            ? outroBackground
+            : (scenes.find(s => s.id === activeSceneId) || scenes[0])
+
     const activeScene = scenes.find(s => s.id === activeSceneId) || scenes[0]
-    const { screenshots, headline, subtitle, phoneColor, scrollSpeed } = activeScene
+    const { screenshots, headline, subtitle, phoneColor, scrollSpeed, headlineScale, subtitleScale, mockupScale } = activeScene
 
     const [isRecording, setIsRecording] = useState(false)
     const [mediaBlobUrl, setMediaBlobUrl] = useState<string | null>(null)
+    const [recordingExtension, setRecordingExtension] = useState<'mp4' | 'webm'>('webm')
     const mediaRecorderRef = useRef<MediaRecorder | null>(null)
     const chunksRef = useRef<Blob[]>([])
+
+    const getExportStageDimensions = useCallback(() => {
+        const viewportWidth = window.innerWidth
+        const viewportHeight = window.innerHeight
+        const padding = 8
+        const maxWidth = Math.max(320, viewportWidth - padding * 2)
+        const maxHeight = Math.max(320, viewportHeight - padding * 2)
+
+        if (aspectRatio === '1:1') {
+            const size = Math.floor(Math.min(maxWidth, maxHeight))
+            return { width: size, height: size }
+        }
+
+        const ratio = 9 / 16
+        let width = Math.floor(maxHeight * ratio)
+        let height = Math.floor(maxHeight)
+
+        if (width > maxWidth) {
+            width = Math.floor(maxWidth)
+            height = Math.floor(width / ratio)
+        }
+
+        return { width, height }
+    }, [aspectRatio])
 
     // === Recording Logic (unchanged) ===
     const startRegionRecording = async () => {
         try {
             setMediaBlobUrl(null)
             chunksRef.current = []
-            const stage = document.getElementById('canvas-stage')
-            if (stage) {
-                const rect = stage.getBoundingClientRect()
-                useStore.getState().setLockedDimensions({ width: rect.width, height: rect.height })
-            }
+            const exportDimensions = getExportStageDimensions()
+            useStore.setState({
+                isExporting: true,
+                isPlaying: false,
+                animationFinished: false,
+                lockedDimensions: exportDimensions,
+            })
+            document.body.style.cursor = 'none'
+
+            await new Promise((resolve) => window.setTimeout(resolve, 250))
+
             const stream = await navigator.mediaDevices.getDisplayMedia({
-                video: { displaySurface: 'browser', width: { ideal: 3840 }, height: { ideal: 2160 }, frameRate: { ideal: 60 } } as any,
+                video: {
+                    displaySurface: 'browser',
+                    width: { ideal: 3840, max: 3840 },
+                    height: { ideal: 2160, max: 2160 },
+                    frameRate: { ideal: 60, max: 60 },
+                    cursor: 'never',
+                } as any,
                 audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
                 preferCurrentTab: true,
                 systemAudio: 'include',
@@ -53,21 +97,42 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
             if (canvasStage && (window as any).CropTarget) {
                 const cropTarget = await (window as any).CropTarget.fromElement(canvasStage)
                 const [videoTrack] = stream.getVideoTracks()
+                if (videoTrack) {
+                    videoTrack.contentHint = 'detail'
+                    try {
+                        await videoTrack.applyConstraints({
+                            width: 3840,
+                            height: 2160,
+                            frameRate: 60,
+                        })
+                    } catch {
+                        // Browsers may ignore or reject exact screen-capture constraints.
+                    }
+                }
                 if (videoTrack && (videoTrack as any).cropTo) await (videoTrack as any).cropTo(cropTarget)
             }
-            let mimeType = 'video/mp4'
-            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm'
-            const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 50000000 })
+            const mimeTypeCandidates = [
+                { mimeType: 'video/webm;codecs=vp9', extension: 'webm' as const },
+                { mimeType: 'video/webm;codecs=vp8', extension: 'webm' as const },
+                { mimeType: 'video/mp4', extension: 'mp4' as const },
+                { mimeType: 'video/webm', extension: 'webm' as const },
+            ]
+            const selectedFormat = mimeTypeCandidates.find(({ mimeType }) => MediaRecorder.isTypeSupported(mimeType))
+                ?? { mimeType: 'video/webm', extension: 'webm' as const }
+            setRecordingExtension(selectedFormat.extension)
+            const recorder = new MediaRecorder(stream, {
+                mimeType: selectedFormat.mimeType,
+                videoBitsPerSecond: 80000000,
+            })
             mediaRecorderRef.current = recorder
             recorder.ondataavailable = (event) => { if (event.data.size > 0) chunksRef.current.push(event.data) }
             recorder.onstop = () => {
-                const blob = new Blob(chunksRef.current, { type: mimeType })
+                const blob = new Blob(chunksRef.current, { type: selectedFormat.mimeType })
                 setMediaBlobUrl(URL.createObjectURL(blob))
                 stream.getTracks().forEach(track => track.stop())
             }
             recorder.start()
             setIsRecording(true)
-            useStore.setState({ isExporting: true, isPlaying: false, animationFinished: false })
             useStore.getState().setFadeEffect('fadeIn')
             const firstSceneId = useStore.getState().scenes[0].id
             useStore.getState().setActiveScene(useStore.getState().showIntro ? 'INTRO' : firstSceneId)
@@ -75,6 +140,12 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
             setTimeout(() => setIsPlaying(true), 1000)
         } catch (err) {
             console.error("Recording failed", err)
+            document.body.style.cursor = ''
+            useStore.setState({
+                isExporting: false,
+                lockedDimensions: null,
+                fadeEffect: 'none',
+            })
             setIsRecording(false)
         }
     }
@@ -84,6 +155,7 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
             mediaRecorderRef.current.stop()
             setIsRecording(false)
         }
+        document.body.style.cursor = ''
     }, [])
 
     const { animationFinished, setAnimationFinished, setIsExporting } = useStore()
@@ -107,6 +179,28 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
     const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, accept: { 'image/*': [] } })
 
     const Colors: PhoneColor[] = ['black', 'silver', 'gold', 'blue']
+    const deviceButtonStyles: Record<PhoneColor, { border: string, glow: string, activeBg: string }> = {
+        black: {
+            border: 'rgba(99, 115, 129, 0.42)',
+            glow: '0 0 0 1px rgba(71,85,105,0.24), 0 10px 26px -14px rgba(2,6,23,0.72)',
+            activeBg: 'linear-gradient(145deg, rgba(58, 65, 74, 0.96), rgba(24, 28, 34, 0.98) 58%, rgba(10, 12, 16, 0.99))',
+        },
+        silver: {
+            border: 'rgba(191, 200, 210, 0.62)',
+            glow: '0 0 0 1px rgba(226,232,240,0.26), 0 10px 26px -14px rgba(100,116,139,0.35)',
+            activeBg: 'linear-gradient(145deg, rgba(236, 240, 243, 0.97), rgba(195, 202, 210, 0.95) 54%, rgba(149, 158, 167, 0.96))',
+        },
+        gold: {
+            border: 'rgba(186, 154, 104, 0.56)',
+            glow: '0 0 0 1px rgba(217, 188, 139, 0.24), 0 10px 26px -14px rgba(120, 89, 45, 0.38)',
+            activeBg: 'linear-gradient(145deg, rgba(224, 201, 164, 0.97), rgba(194, 165, 117, 0.95) 56%, rgba(143, 112, 66, 0.96))',
+        },
+        blue: {
+            border: 'rgba(92, 111, 133, 0.56)',
+            glow: '0 0 0 1px rgba(125, 150, 176, 0.22), 0 10px 26px -14px rgba(15, 23, 42, 0.5)',
+            activeBg: 'linear-gradient(145deg, rgba(111, 130, 154, 0.96), rgba(68, 84, 104, 0.97) 56%, rgba(32, 43, 58, 0.98))',
+        },
+    }
 
     // Toggle Component
     const Toggle = ({ value, onChange }: { value: boolean; onChange: () => void }) => (
@@ -121,6 +215,57 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
 
 
             <div className="flex flex-col gap-6 p-5">
+
+                {/* === INTRO/OUTRO SETTINGS === */}
+                <section className="space-y-4">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-white/40 flex items-center gap-2">
+                        <Sparkles size={14} /> Intro & Outro
+                    </h3>
+
+                    {/* Intro */}
+                    <div className="bg-white/[0.02] rounded-xl p-4 space-y-4 border border-white/5">
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">Intro Screen</span>
+                            <Toggle value={showIntro} onChange={() => setShowIntro(!showIntro)} />
+                        </div>
+                        {showIntro && (
+                            <div className="space-y-3 pt-2 border-t border-white/5">
+                                <div className="flex gap-3">
+                                    <div className="w-14 h-14 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                        {introLogo ? <img src={introLogo} className="w-full h-full object-cover" /> : <Upload size={16} className="text-white/20" />}
+                                    </div>
+                                    <div className="flex-1 flex items-center">
+                                        <input type="file" accept="image/*" id="intro-logo" className="hidden" onChange={(e) => { if (e.target.files?.[0]) setIntroLogo(URL.createObjectURL(e.target.files[0])) }} />
+                                        <label htmlFor="intro-logo" className="text-xs bg-white/10 hover:bg-white/15 px-3 py-2 rounded-lg cursor-pointer transition-colors">Upload Logo</label>
+                                    </div>
+                                </div>
+                                <input value={introTitle} onChange={(e) => setIntroTitle(e.target.value)} placeholder="App Name" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm placeholder:text-white/30 focus:border-primary focus:outline-none" />
+                                <input value={introSubtitle} onChange={(e) => setIntroSubtitle(e.target.value)} placeholder="Tagline" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm placeholder:text-white/30 focus:border-primary focus:outline-none" />
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Outro */}
+                    <div className="bg-white/[0.02] rounded-xl p-4 space-y-4 border border-white/5">
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">Outro Screen</span>
+                            <Toggle value={showOutro} onChange={() => setShowOutro(!showOutro)} />
+                        </div>
+                        {showOutro && (
+                            <div className="space-y-3 pt-2 border-t border-white/5">
+                                <div className="flex gap-3">
+                                    <div className="w-14 h-14 rounded-xl bg-white border border-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                        {outroQrCode ? <img src={outroQrCode} className="w-full h-full object-cover" /> : <Settings size={16} className="text-black/20" />}
+                                    </div>
+                                    <div className="flex-1 flex items-center">
+                                        <input type="file" accept="image/*" id="outro-qr" className="hidden" onChange={(e) => { if (e.target.files?.[0]) setOutroQrCode(URL.createObjectURL(e.target.files[0])) }} />
+                                        <label htmlFor="outro-qr" className="text-xs bg-white/10 hover:bg-white/15 px-3 py-2 rounded-lg cursor-pointer transition-colors">Upload QR</label>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </section>
 
                 {/* === TIMELINE / SCENES === */}
                 <section>
@@ -189,30 +334,45 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
                             </h3>
                             <div className="flex gap-2">
                                 {Colors.map((color) => (
-                                    <button key={color} onClick={() => setPhoneColor(color)} className={clsx("flex-1 py-2.5 rounded-lg text-xs font-medium capitalize transition-all", phoneColor === color ? "bg-white text-black shadow-lg" : "bg-white/5 text-white/60 hover:bg-white/10")}>
+                                    <button
+                                        key={color}
+                                        onClick={() => setPhoneColor(color)}
+                                        className={clsx(
+                                            "flex-1 py-2.5 rounded-xl text-xs font-semibold capitalize transition-all duration-300 border backdrop-blur-sm",
+                                            phoneColor === color
+                                                ? "text-slate-950 scale-[1.02]"
+                                                : "text-white/75 bg-white/[0.03] hover:bg-white/[0.07] hover:text-white hover:-translate-y-[1px] border-white/10"
+                                        )}
+                                        style={phoneColor === color
+                                            ? {
+                                                background: deviceButtonStyles[color].activeBg,
+                                                borderColor: deviceButtonStyles[color].border,
+                                                boxShadow: deviceButtonStyles[color].glow,
+                                            }
+                                            : undefined
+                                        }
+                                    >
                                         {color}
                                     </button>
                                 ))}
                             </div>
-                        </div>
-
-                        {/* Background */}
-                        <div>
-                            <h3 className="text-xs font-semibold uppercase tracking-wider text-white/40 flex items-center gap-2 mb-3">
-                                <Palette size={14} /> Background
-                            </h3>
-                            <GenericBackgroundPicker
-                                type={activeScene.backgroundType}
-                                color={activeScene.backgroundColor}
-                                gradient={activeScene.backgroundGradient}
-                                pattern={activeScene.backgroundPattern}
-                                image={activeScene.backgroundImage}
-                                onTypeChange={setBackgroundType}
-                                onColorChange={setBackgroundColor}
-                                onGradientChange={setBackgroundGradient}
-                                onPatternChange={setBackgroundPattern}
-                                onImageChange={setBackgroundImage}
-                            />
+                            <div className="pt-3 space-y-2">
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="text-white/50 flex items-center gap-1.5">
+                                        <Maximize2 size={12} /> Mockup Size
+                                    </span>
+                                    <span className="text-white font-medium">{Math.round(mockupScale * 100)}%</span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0.5"
+                                    max="1.5"
+                                    step="0.05"
+                                    value={mockupScale}
+                                    onChange={(e) => setMockupScale(Number(e.target.value))}
+                                    className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-primary"
+                                />
+                            </div>
                         </div>
 
                         {/* Typography */}
@@ -223,6 +383,36 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
                             <div className="space-y-3">
                                 <input type="text" value={headline} onChange={(e) => updateHeadline(e.target.value)} placeholder="Headline" className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm placeholder:text-white/30 focus:border-primary focus:outline-none transition-colors" />
                                 <input type="text" value={subtitle} onChange={(e) => updateSubtitle(e.target.value)} placeholder="Subtitle" className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm placeholder:text-white/30 focus:border-primary focus:outline-none transition-colors" />
+                                <div className="space-y-2 pt-1">
+                                    <div className="flex items-center justify-between text-xs">
+                                        <span className="text-white/50">Heading Size</span>
+                                        <span className="text-white font-medium">{Math.round(headlineScale * 100)}%</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="0.7"
+                                        max="1.6"
+                                        step="0.05"
+                                        value={headlineScale}
+                                        onChange={(e) => setHeadlineScale(Number(e.target.value))}
+                                        className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-primary"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between text-xs">
+                                        <span className="text-white/50">Subtitle Size</span>
+                                        <span className="text-white font-medium">{Math.round(subtitleScale * 100)}%</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="0.7"
+                                        max="1.6"
+                                        step="0.05"
+                                        value={subtitleScale}
+                                        onChange={(e) => setSubtitleScale(Number(e.target.value))}
+                                        className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-primary"
+                                    />
+                                </div>
                             </div>
                         </div>
 
@@ -252,55 +442,23 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
                     </section>
                 )}
 
-                {/* === INTRO/OUTRO SETTINGS === */}
-                <section className="space-y-4">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-white/40 flex items-center gap-2">
-                        <Sparkles size={14} /> Intro & Outro
+                {/* Background */}
+                <section>
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-white/40 flex items-center gap-2 mb-3">
+                        <Palette size={14} /> Background
                     </h3>
-
-                    {/* Intro */}
-                    <div className="bg-white/[0.02] rounded-xl p-4 space-y-4 border border-white/5">
-                        <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium">Intro Screen</span>
-                            <Toggle value={showIntro} onChange={() => setShowIntro(!showIntro)} />
-                        </div>
-                        {showIntro && (
-                            <div className="space-y-3 pt-2 border-t border-white/5">
-                                <div className="flex gap-3">
-                                    <div className="w-14 h-14 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
-                                        {introLogo ? <img src={introLogo} className="w-full h-full object-cover" /> : <Upload size={16} className="text-white/20" />}
-                                    </div>
-                                    <div className="flex-1 flex items-center">
-                                        <input type="file" accept="image/*" id="intro-logo" className="hidden" onChange={(e) => { if (e.target.files?.[0]) setIntroLogo(URL.createObjectURL(e.target.files[0])) }} />
-                                        <label htmlFor="intro-logo" className="text-xs bg-white/10 hover:bg-white/15 px-3 py-2 rounded-lg cursor-pointer transition-colors">Upload Logo</label>
-                                    </div>
-                                </div>
-                                <input value={introTitle} onChange={(e) => setIntroTitle(e.target.value)} placeholder="App Name" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm placeholder:text-white/30 focus:border-primary focus:outline-none" />
-                                <input value={introSubtitle} onChange={(e) => setIntroSubtitle(e.target.value)} placeholder="Tagline" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm placeholder:text-white/30 focus:border-primary focus:outline-none" />
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Outro */}
-                    <div className="bg-white/[0.02] rounded-xl p-4 space-y-4 border border-white/5">
-                        <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium">Outro Screen</span>
-                            <Toggle value={showOutro} onChange={() => setShowOutro(!showOutro)} />
-                        </div>
-                        {showOutro && (
-                            <div className="space-y-3 pt-2 border-t border-white/5">
-                                <div className="flex gap-3">
-                                    <div className="w-14 h-14 rounded-xl bg-white border border-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
-                                        {outroQrCode ? <img src={outroQrCode} className="w-full h-full object-cover" /> : <Settings size={16} className="text-black/20" />}
-                                    </div>
-                                    <div className="flex-1 flex items-center">
-                                        <input type="file" accept="image/*" id="outro-qr" className="hidden" onChange={(e) => { if (e.target.files?.[0]) setOutroQrCode(URL.createObjectURL(e.target.files[0])) }} />
-                                        <label htmlFor="outro-qr" className="text-xs bg-white/10 hover:bg-white/15 px-3 py-2 rounded-lg cursor-pointer transition-colors">Upload QR</label>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                    <GenericBackgroundPicker
+                        type={activeBackground.backgroundType}
+                        color={activeBackground.backgroundColor}
+                        gradient={activeBackground.backgroundGradient}
+                        pattern={activeBackground.backgroundPattern}
+                        image={activeBackground.backgroundImage}
+                        onTypeChange={setBackgroundType}
+                        onColorChange={setBackgroundColor}
+                        onGradientChange={setBackgroundGradient}
+                        onPatternChange={setBackgroundPattern}
+                        onImageChange={setBackgroundImage}
+                    />
                 </section>
 
                 {/* === AUDIO === */}
@@ -335,7 +493,7 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
                     {mediaBlobUrl && !isRecording && (
                         <div className="bg-white/[0.02] rounded-xl p-4 space-y-4 border border-white/5">
                             <video src={mediaBlobUrl} controls className="w-full rounded-lg" />
-                            <a href={mediaBlobUrl} download="app-promo.mp4" className="block w-full py-3 bg-primary hover:bg-primary/90 text-white text-center rounded-lg font-medium transition-colors">
+                            <a href={mediaBlobUrl} download={`app-promo.${recordingExtension}`} className="block w-full py-3 bg-primary hover:bg-primary/90 text-white text-center rounded-lg font-medium transition-colors">
                                 Download Video
                             </a>
                         </div>

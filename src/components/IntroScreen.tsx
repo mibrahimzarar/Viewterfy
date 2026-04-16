@@ -3,17 +3,14 @@ import { useStore } from '../store/useStore'
 import { getBackgroundStyle } from './GenericBackgroundPicker'
 
 export const IntroScreen = () => {
-    const { introLogo, introTitle, introSubtitle, scenes, aspectRatio } = useStore()
-
-    // Determine backgound from the FIRST scene for consistency, or active scene
-    const firstScene = scenes[0]
+    const { introLogo, introTitle, introSubtitle, introBackground, aspectRatio } = useStore()
 
     const isVertical = aspectRatio === '9:16'
 
     return (
         <div
             className="w-full h-full flex flex-col items-center justify-center p-8 text-center relative overflow-hidden"
-            style={getBackgroundStyle(firstScene)}
+            style={getBackgroundStyle(introBackground)}
         >
             {/* Animated Particles/Glow (Optional - borrowing from Layout ambient feel) */}
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_rgba(0,0,0,0.4)_100%)] pointer-events-none" />
@@ -27,7 +24,7 @@ export const IntroScreen = () => {
                     opacity: { duration: 0.8 },
                     scale: { duration: 1.1, ease: [0.22, 1, 0.36, 1] }
                 }}
-                className={`z-10 flex flex-col items-center ${isVertical ? 'gap-6 justify-center h-full pb-0' : 'gap-6'}`}
+                className={`z-10 flex flex-col items-center overflow-visible ${isVertical ? 'gap-5 justify-center h-full py-4' : 'gap-6 py-2'}`}
             >
                 {/* Logo Container */}
                 <div className="relative group">
@@ -44,12 +41,12 @@ export const IntroScreen = () => {
                 </div>
 
                 {/* Text Content */}
-                <div className="space-y-2 max-w-md">
+                <div className="space-y-2 max-w-md overflow-visible">
                     <motion.h1
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.2, duration: 0.6 }}
-                        className={`${isVertical ? 'text-3xl mt-2 px-4 leading-tight' : 'text-4xl md:text-5xl'} font-bold tracking-tight bg-gradient-to-b from-white to-white/70 bg-clip-text text-transparent drop-shadow-sm`}
+                        className={`${isVertical ? 'text-3xl mt-1 px-5 leading-[1.15]' : 'text-4xl md:text-5xl leading-[1.12]'} font-bold tracking-tight bg-gradient-to-b from-white to-white/70 bg-clip-text text-transparent drop-shadow-sm`}
                     >
                         {introTitle}
                     </motion.h1>

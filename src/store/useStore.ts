@@ -11,6 +11,9 @@ export interface Scene {
     screenshots: string[]
     headline: string
     subtitle: string
+    headlineScale: number
+    subtitleScale: number
+    mockupScale: number
     // Per-Scene Settings
     phoneColor: PhoneColor
     // Background
@@ -20,6 +23,14 @@ export interface Scene {
     backgroundPattern: 'dots' | 'grid' | 'waves' | 'circles'
     backgroundImage: string | null
     scrollSpeed: number
+}
+
+export interface BackgroundSettings {
+    backgroundType: 'gradient' | 'solid' | 'pattern' | 'image'
+    backgroundColor: string
+    backgroundGradient: string
+    backgroundPattern: 'dots' | 'grid' | 'waves' | 'circles'
+    backgroundImage: string | null
 }
 
 interface AppState {
@@ -36,6 +47,9 @@ interface AppState {
     reorderScreenshots: (newOrder: string[]) => void
     updateHeadline: (text: string) => void
     updateSubtitle: (text: string) => void
+    setHeadlineScale: (scale: number) => void
+    setSubtitleScale: (scale: number) => void
+    setMockupScale: (scale: number) => void
 
     // Per-Scene Setters (Proxy to Active Scene)
     setPhoneColor: (color: PhoneColor) => void
@@ -76,6 +90,7 @@ interface AppState {
     introLogo: string | null
     introTitle: string
     introSubtitle: string
+    introBackground: BackgroundSettings
     setShowIntro: (show: boolean) => void
     setIntroLogo: (logo: string | null) => void
     setIntroTitle: (text: string) => void
@@ -84,6 +99,7 @@ interface AppState {
     // Outro Settings
     showOutro: boolean
     outroQrCode: string | null
+    outroBackground: BackgroundSettings
     setShowOutro: (show: boolean) => void
     setOutroQrCode: (qr: string | null) => void
 
@@ -105,6 +121,9 @@ export const useStore = create<AppState>((set) => ({
         screenshots: [],
         headline: "Experience the Future",
         subtitle: "Seamless, elegant, and powerful.",
+        headlineScale: 1,
+        subtitleScale: 1,
+        mockupScale: 1,
         phoneColor: 'black',
         backgroundType: 'gradient',
         backgroundColor: '#1a1a2e',
@@ -120,10 +139,24 @@ export const useStore = create<AppState>((set) => ({
     introLogo: null,
     introTitle: "Welcome",
     introSubtitle: "Discover the amazing features",
+    introBackground: {
+        backgroundType: 'gradient',
+        backgroundColor: '#1a1a2e',
+        backgroundGradient: PRESET_GRADIENTS[PRESET_GRADIENTS.length - 1].value,
+        backgroundPattern: 'dots',
+        backgroundImage: null,
+    },
 
     // Outro Settings Initial State
     showOutro: false,
     outroQrCode: null,
+    outroBackground: {
+        backgroundType: 'gradient',
+        backgroundColor: '#1a1a2e',
+        backgroundGradient: PRESET_GRADIENTS[PRESET_GRADIENTS.length - 1].value,
+        backgroundPattern: 'dots',
+        backgroundImage: null,
+    },
 
     // Audio Initial State
     audioFile: null,
@@ -141,6 +174,9 @@ export const useStore = create<AppState>((set) => ({
                 screenshots: [],
                 headline: "New Scene",
                 subtitle: "Describe this scene...",
+                headlineScale: lastScene.headlineScale,
+                subtitleScale: lastScene.subtitleScale,
+                mockupScale: lastScene.mockupScale,
                 phoneColor: lastScene.phoneColor,
                 backgroundType: lastScene.backgroundType,
                 backgroundColor: lastScene.backgroundColor,
@@ -210,6 +246,24 @@ export const useStore = create<AppState>((set) => ({
             scenes: state.scenes.map(s => s.id === targetId ? { ...s, subtitle } : s)
         }
     }),
+    setHeadlineScale: (headlineScale) => set((state) => {
+        const targetId = state.activeSceneId === 'INTRO' ? state.scenes[0].id : state.activeSceneId === 'OUTRO' ? state.scenes[state.scenes.length - 1].id : state.activeSceneId
+        return {
+            scenes: state.scenes.map(s => s.id === targetId ? { ...s, headlineScale } : s)
+        }
+    }),
+    setSubtitleScale: (subtitleScale) => set((state) => {
+        const targetId = state.activeSceneId === 'INTRO' ? state.scenes[0].id : state.activeSceneId === 'OUTRO' ? state.scenes[state.scenes.length - 1].id : state.activeSceneId
+        return {
+            scenes: state.scenes.map(s => s.id === targetId ? { ...s, subtitleScale } : s)
+        }
+    }),
+    setMockupScale: (mockupScale) => set((state) => {
+        const targetId = state.activeSceneId === 'INTRO' ? state.scenes[0].id : state.activeSceneId === 'OUTRO' ? state.scenes[state.scenes.length - 1].id : state.activeSceneId
+        return {
+            scenes: state.scenes.map(s => s.id === targetId ? { ...s, mockupScale } : s)
+        }
+    }),
 
     setPhoneColor: (phoneColor) => set((state) => {
         const targetId = state.activeSceneId === 'INTRO' ? state.scenes[0].id : state.activeSceneId === 'OUTRO' ? state.scenes[state.scenes.length - 1].id : state.activeSceneId
@@ -219,24 +273,49 @@ export const useStore = create<AppState>((set) => ({
     }),
 
     setBackgroundType: (type) => set((state) => {
-        const targetId = state.activeSceneId === 'INTRO' ? state.scenes[0].id : state.activeSceneId === 'OUTRO' ? state.scenes[state.scenes.length - 1].id : state.activeSceneId
-        return { scenes: state.scenes.map(s => s.id === targetId ? { ...s, backgroundType: type } : s) }
+        if (state.activeSceneId === 'INTRO') {
+            return { introBackground: { ...state.introBackground, backgroundType: type } }
+        }
+        if (state.activeSceneId === 'OUTRO') {
+            return { outroBackground: { ...state.outroBackground, backgroundType: type } }
+        }
+        return { scenes: state.scenes.map(s => s.id === state.activeSceneId ? { ...s, backgroundType: type } : s) }
     }),
     setBackgroundColor: (color) => set((state) => {
-        const targetId = state.activeSceneId === 'INTRO' ? state.scenes[0].id : state.activeSceneId === 'OUTRO' ? state.scenes[state.scenes.length - 1].id : state.activeSceneId
-        return { scenes: state.scenes.map(s => s.id === targetId ? { ...s, backgroundColor: color } : s) }
+        if (state.activeSceneId === 'INTRO') {
+            return { introBackground: { ...state.introBackground, backgroundColor: color } }
+        }
+        if (state.activeSceneId === 'OUTRO') {
+            return { outroBackground: { ...state.outroBackground, backgroundColor: color } }
+        }
+        return { scenes: state.scenes.map(s => s.id === state.activeSceneId ? { ...s, backgroundColor: color } : s) }
     }),
     setBackgroundGradient: (gradient) => set((state) => {
-        const targetId = state.activeSceneId === 'INTRO' ? state.scenes[0].id : state.activeSceneId === 'OUTRO' ? state.scenes[state.scenes.length - 1].id : state.activeSceneId
-        return { scenes: state.scenes.map(s => s.id === targetId ? { ...s, backgroundGradient: gradient } : s) }
+        if (state.activeSceneId === 'INTRO') {
+            return { introBackground: { ...state.introBackground, backgroundGradient: gradient } }
+        }
+        if (state.activeSceneId === 'OUTRO') {
+            return { outroBackground: { ...state.outroBackground, backgroundGradient: gradient } }
+        }
+        return { scenes: state.scenes.map(s => s.id === state.activeSceneId ? { ...s, backgroundGradient: gradient } : s) }
     }),
     setBackgroundPattern: (pattern) => set((state) => {
-        const targetId = state.activeSceneId === 'INTRO' ? state.scenes[0].id : state.activeSceneId === 'OUTRO' ? state.scenes[state.scenes.length - 1].id : state.activeSceneId
-        return { scenes: state.scenes.map(s => s.id === targetId ? { ...s, backgroundPattern: pattern } : s) }
+        if (state.activeSceneId === 'INTRO') {
+            return { introBackground: { ...state.introBackground, backgroundPattern: pattern } }
+        }
+        if (state.activeSceneId === 'OUTRO') {
+            return { outroBackground: { ...state.outroBackground, backgroundPattern: pattern } }
+        }
+        return { scenes: state.scenes.map(s => s.id === state.activeSceneId ? { ...s, backgroundPattern: pattern } : s) }
     }),
     setBackgroundImage: (image) => set((state) => {
-        const targetId = state.activeSceneId === 'INTRO' ? state.scenes[0].id : state.activeSceneId === 'OUTRO' ? state.scenes[state.scenes.length - 1].id : state.activeSceneId
-        return { scenes: state.scenes.map(s => s.id === targetId ? { ...s, backgroundImage: image } : s) }
+        if (state.activeSceneId === 'INTRO') {
+            return { introBackground: { ...state.introBackground, backgroundImage: image } }
+        }
+        if (state.activeSceneId === 'OUTRO') {
+            return { outroBackground: { ...state.outroBackground, backgroundImage: image } }
+        }
+        return { scenes: state.scenes.map(s => s.id === state.activeSceneId ? { ...s, backgroundImage: image } : s) }
     }),
 
     setScrollSpeed: (scrollSpeed) => set((state) => {
