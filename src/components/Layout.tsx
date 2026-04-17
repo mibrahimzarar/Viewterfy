@@ -3,7 +3,7 @@ import { ControlPanel } from './ControlPanel'
 import { PhoneMockup } from './PhoneMockup'
 import { clsx } from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { IntroScreen } from './IntroScreen'
 import { OutroScreen } from './OutroScreen'
 import { patterns } from './GenericBackgroundPicker'
@@ -49,8 +49,30 @@ export const Layout = () => {
     // Mobile sidebar state
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const [mounted, setMounted] = useState(false)
+    const [isFullscreen, setIsFullscreen] = useState(false)
 
     useEffect(() => setMounted(true), [])
+
+    useEffect(() => {
+        const syncFullscreenState = () => {
+            setIsFullscreen(Boolean(document.fullscreenElement))
+        }
+
+        document.addEventListener('fullscreenchange', syncFullscreenState)
+        return () => document.removeEventListener('fullscreenchange', syncFullscreenState)
+    }, [])
+
+    const toggleFullscreen = useCallback(async () => {
+        try {
+            if (document.fullscreenElement) {
+                await document.exitFullscreen()
+                return
+            }
+            await document.documentElement.requestFullscreen()
+        } catch {
+            // Some browsers/platforms may block fullscreen unless triggered differently.
+        }
+    }, [])
 
     // Close sidebar on escape key
     useEffect(() => {
@@ -189,6 +211,24 @@ export const Layout = () => {
                     : "bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800",
                 isExporting ? "p-0" : "pt-36 md:pt-0"
             )}>
+                {!isExporting && (
+                    <button
+                        type="button"
+                        onClick={toggleFullscreen}
+                        className="fixed top-20 right-4 md:top-4 z-[60] inline-flex items-center gap-2 rounded-xl border border-white/20 bg-black/35 px-3 py-2 text-xs font-medium text-white backdrop-blur-xl transition hover:bg-black/50"
+                        aria-label={isFullscreen ? 'Exit fullscreen mode' : 'Enter fullscreen mode'}
+                        title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+                    >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            {isFullscreen ? (
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9H5V5m10 0h4v4M9 15H5v4m14-4v4h-4" />
+                            ) : (
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 9V4h5m6 0h5v5M9 20H4v-5m16 0v5h-5" />
+                            )}
+                        </svg>
+                        <span>{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</span>
+                    </button>
+                )}
 
                 {/* Ambient Background Glow - Elegant Light Colors */}
                 {!isExporting && <div className="absolute inset-0 overflow-hidden pointer-events-none">

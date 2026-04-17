@@ -10,9 +10,12 @@ export const AudioPanel = () => {
         audioFile, setAudioFile,
         audioName, setAudioName,
         audioVolume, setAudioVolume,
+        audioTrim,
         setAudioTrim,
         isPlaying,
-        videoDuration
+        videoDuration,
+        isExporting,
+        isFullCyclePreview,
     } = useStore()
 
     const containerRef = useRef<HTMLDivElement>(null)
@@ -20,6 +23,7 @@ export const AudioPanel = () => {
     const regionsRef = useRef<any>(null)
     const [localIsPlaying, setLocalIsPlaying] = useState(false)
     const [duration, setDuration] = useState(0)
+    const [currentTime, setCurrentTime] = useState(0)
     const [error, setError] = useState<string | null>(null)
 
     // File Upload Handler
@@ -27,6 +31,7 @@ export const AudioPanel = () => {
         const file = e.target.files?.[0]
         if (file) {
             setError(null)
+            setCurrentTime(0)
             const url = URL.createObjectURL(file)
             setAudioFile(url)
             setAudioName(file.name)
@@ -87,6 +92,7 @@ export const AudioPanel = () => {
             })
 
             ws.on('audioprocess', (currentTime) => {
+                setCurrentTime(currentTime)
                 const region = regionsRef.current?.getRegions()[0]
                 if (region && (currentTime < region.start || currentTime >= region.end)) {
                     if (ws.isPlaying()) {
@@ -101,6 +107,7 @@ export const AudioPanel = () => {
 
             ws.on('play', () => setLocalIsPlaying(true))
             ws.on('pause', () => setLocalIsPlaying(false))
+            ws.on('seeking', (time) => setCurrentTime(time))
             ws.on('error', (err) => {
                 console.error("WaveSurfer Error:", err)
                 setError("Failed to load audio. Please try another file.")
@@ -129,6 +136,13 @@ export const AudioPanel = () => {
         const ws = wavesurferRef.current
         if (!ws) return
 
+        const keepAudioAliveDuringSceneTransition =
+            !isPlaying && (isExporting || isFullCyclePreview)
+
+        if (keepAudioAliveDuringSceneTransition) {
+            return
+        }
+
         if (isPlaying) {
             // Seek to trim start if we are resetting or just starting?
             // For now, simple play. The audioprocess will handle end.
@@ -145,7 +159,7 @@ export const AudioPanel = () => {
         } else {
             ws.pause()
         }
-    }, [isPlaying])
+    }, [isPlaying, isExporting, isFullCyclePreview])
 
     // Sync Volume
     useEffect(() => {
@@ -160,6 +174,8 @@ export const AudioPanel = () => {
     const clearAudio = () => {
         setAudioFile(null)
         setAudioName(null)
+        setCurrentTime(0)
+        setDuration(0)
         setAudioTrim({ start: 0, end: 0 })
         setError(null)
     }
@@ -169,6 +185,7 @@ export const AudioPanel = () => {
         const secs = Math.floor(seconds % 60)
         return `${mins}:${secs.toString().padStart(2, '0')} `
     }
+    const selectedDuration = Math.max(0, audioTrim.end - audioTrim.start)
 
     if (!audioFile) {
         return (
@@ -230,7 +247,8 @@ export const AudioPanel = () => {
                     <div ref={containerRef} className="w-full h-[60px]" /> {/* Explicit height */}
 
                     <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground font-mono">
-                        <span>{formatTime(0)}</span>
+                        <span>{formatTime(currentTime)}</span>
+                        <span className="text-white/80">Selected {formatTime(selectedDuration)}</span>
                         <span>{formatTime(duration)}</span>
                     </div>
                 </div>
