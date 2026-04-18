@@ -128,6 +128,7 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
                 isExporting: true,
                 isPlaying: false,
                 animationFinished: false,
+                isFullCyclePreview: false, // Ensure we're not in preview mode
                 lockedDimensions: exportDimensions,
             })
             document.body.style.cursor = 'none'
@@ -164,40 +165,66 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
                 }
                 if (videoTrack && (videoTrack as any).cropTo) await (videoTrack as any).cropTo(cropTarget)
             }
-            // Prefer MP4/H.264 first; fall back to WebM if browser doesn't support it.
+            // Prioritize MP4/H.264 for universal compatibility across PC and Mobile.
+            // Chrome/Edge 130+ support recording natively to MP4.
             const mimeTypeCandidates = [
                 { mimeType: 'video/mp4;codecs=h264,aac', extension: 'mp4' as const },
+                { mimeType: 'video/mp4;codecs=h264,opus', extension: 'mp4' as const },
                 { mimeType: 'video/mp4;codecs=h264', extension: 'mp4' as const },
+                { mimeType: 'video/mp4;codecs=avc1,aac', extension: 'mp4' as const },
                 { mimeType: 'video/mp4;codecs=avc1', extension: 'mp4' as const },
                 { mimeType: 'video/mp4', extension: 'mp4' as const },
-                { mimeType: 'video/webm;codecs=av1,opus', extension: 'webm' as const },
-                { mimeType: 'video/webm;codecs=vp9,opus', extension: 'webm' as const },
-                { mimeType: 'video/webm;codecs=vp9', extension: 'webm' as const },
                 { mimeType: 'video/webm;codecs=vp8,opus', extension: 'webm' as const },
+                { mimeType: 'video/webm;codecs=vp8', extension: 'webm' as const },
+                { mimeType: 'video/webm;codecs=vp9,opus', extension: 'webm' as const },
                 { mimeType: 'video/webm', extension: 'webm' as const },
             ]
             const selectedFormat = mimeTypeCandidates.find(({ mimeType }) => MediaRecorder.isTypeSupported(mimeType))
                 ?? { mimeType: 'video/webm', extension: 'webm' as const }
+            
             setRecordingExtension(selectedFormat.extension)
+
+            // Initialize the sequence state BEFORE starting the recorder
+            const firstSceneId = useStore.getState().scenes[0].id
+            const startSceneId = useStore.getState().showIntro ? 'INTRO' : firstSceneId
+            
+            // Critical: Set start scene and reset signals before recorder starts
+            useStore.setState({ 
+                activeSceneId: startSceneId,
+                animationFinished: false,
+                isPlaying: false
+            })
+
+            // Allow a tiny delay for React to reflect the scene change in the DOM
+            await new Promise(r => setTimeout(r, 100))
+
+            // Set bitrate to 12 Mbps for optimal high-quality playback on mobile decoders
             const recorder = new MediaRecorder(stream, {
                 mimeType: selectedFormat.mimeType,
-                videoBitsPerSecond: 120000000,
-                audioBitsPerSecond: 320000,
+                videoBitsPerSecond: 12000000, 
+                audioBitsPerSecond: 128000,
             })
             mediaRecorderRef.current = recorder
-            recorder.ondataavailable = (event) => { if (event.data.size > 0) chunksRef.current.push(event.data) }
+            recorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    chunksRef.current.push(event.data)
+                }
+            }
             recorder.onstop = () => {
                 const blob = new Blob(chunksRef.current, { type: selectedFormat.mimeType })
                 setMediaBlobUrl(URL.createObjectURL(blob))
                 stream.getTracks().forEach(track => track.stop())
             }
-            recorder.start()
+            // Use 1000ms timeslice to ensure data is periodically saved to blobs
+            recorder.start(1000)
             setIsRecording(true)
             useStore.getState().setFadeEffect('fadeIn')
-            const firstSceneId = useStore.getState().scenes[0].id
-            useStore.getState().setActiveScene(useStore.getState().showIntro ? 'INTRO' : firstSceneId)
-            useStore.getState().triggerReset()
-            setTimeout(() => setIsPlaying(true), 1000)
+            
+            // Start the visual sequence after a short warmup
+            setTimeout(() => {
+                useStore.getState().triggerReset()
+                useStore.getState().setIsPlaying(true)
+            }, 800)
         } catch (err) {
             console.error("Recording failed", err)
             document.body.style.cursor = ''

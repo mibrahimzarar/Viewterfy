@@ -312,18 +312,36 @@ export const Layout = () => {
                                             : "order-2 text-center items-center px-3 md:px-4 max-w-[85%] md:max-w-[90%] -mt-18 md:-mt-25 space-y-1.5 md:space-y-2"
                                     )}>
                                         {headline && (
-                                            <h1 className={clsx(
-                                                "font-bold leading-tight tracking-tight drop-shadow-lg",
-                                            )} style={{ fontSize: headingFontSize }}>
+                                            <motion.h1
+                                                key={`headline-${activeSceneId}`}
+                                                initial={{ opacity: 0, y: 20, filter: 'blur(8px)' }}
+                                                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                                                transition={{
+                                                    delay: 0.5,
+                                                    duration: 0.8,
+                                                    ease: [0.22, 1, 0.36, 1]
+                                                }}
+                                                className={clsx(
+                                                    "font-bold leading-tight tracking-tight drop-shadow-lg",
+                                                )} style={{ fontSize: headingFontSize }}>
                                                 {headline}
-                                            </h1>
+                                            </motion.h1>
                                         )}
                                         {subtitle && (
-                                            <p className={clsx(
-                                                "font-medium text-white/80 drop-shadow-md"
-                                            )} style={{ fontSize: subtitleFontSize }}>
+                                            <motion.p
+                                                key={`subtitle-${activeSceneId}`}
+                                                initial={{ opacity: 0, y: 15, filter: 'blur(4px)' }}
+                                                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                                                transition={{
+                                                    delay: 0.7,
+                                                    duration: 0.8,
+                                                    ease: [0.22, 1, 0.36, 1]
+                                                }}
+                                                className={clsx(
+                                                    "font-medium text-white/80 drop-shadow-md"
+                                                )} style={{ fontSize: subtitleFontSize }}>
                                                 {subtitle}
-                                            </p>
+                                            </motion.p>
                                         )}
                                     </div>
                                 )}

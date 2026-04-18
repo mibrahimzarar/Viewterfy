@@ -23,8 +23,30 @@ export const OutroScreen = () => {
                 className={`z-10 flex flex-col items-center w-full max-w-lg ${isVertical ? 'gap-6 justify-center h-full pb-0' : isSquare ? 'gap-6' : 'gap-8'}`}
             >
                 <div className="space-y-1">
-                    <h2 className={`font-bold text-white drop-shadow-md ${isVertical ? 'text-2xl' : 'text-3xl md:text-4xl'}`}>Download Now</h2>
-                    <p className={`text-white/80 font-medium drop-shadow-sm ${isVertical ? 'text-sm' : 'text-lg'}`}>Available on iOS and Android</p>
+                    <motion.h2
+                        initial={{ opacity: 0, y: 20, filter: 'blur(8px)' }}
+                        animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                        transition={{
+                            delay: 0.4,
+                            duration: 0.8,
+                            ease: [0.22, 1, 0.36, 1]
+                        }}
+                        className={`font-bold text-white drop-shadow-md ${isVertical ? 'text-2xl' : 'text-3xl md:text-4xl'}`}
+                    >
+                        Download Now
+                    </motion.h2>
+                    <motion.p
+                        initial={{ opacity: 0, y: 15, filter: 'blur(4px)' }}
+                        animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                        transition={{
+                            delay: 0.6,
+                            duration: 0.8,
+                            ease: [0.22, 1, 0.36, 1]
+                        }}
+                        className={`text-white/80 font-medium drop-shadow-sm ${isVertical ? 'text-sm' : 'text-lg'}`}
+                    >
+                        Available on iOS and Android
+                    </motion.p>
                 </div>
 
                 {/* Content Container: Vertical for Phone, Horizontal for Square, Stacked for Landscape */}
