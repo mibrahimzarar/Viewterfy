@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 import { useStore, type PhoneColor } from '../store/useStore'
 import { AudioPanel } from './AudioPanel'
 import { clsx } from 'clsx'
-import { Upload, X, Smartphone, Type, Settings, Download, CircleDot, RotateCcw, Palette, Play, Pause, Film, Sparkles, Image, Maximize2, Clapperboard, Square } from 'lucide-react'
+import { Upload, X, Smartphone, Type, Settings, Download, CircleDot, RotateCcw, Palette, Play, Pause, Film, Sparkles, Image, Maximize2, Clapperboard, Square, FolderOpen, Save } from 'lucide-react'
+import { saveProject, loadProject } from '../utils/projectFile'
 import { GenericBackgroundPicker } from './GenericBackgroundPicker'
 
 interface ControlPanelProps {
@@ -77,10 +78,19 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
 
     const [isRecording, setIsRecording] = useState(false)
     const [mediaBlobUrl, setMediaBlobUrl] = useState<string | null>(null)
-    const [recordingExtension, setRecordingExtension] = useState<'mp4' | 'webm'>('webm')
+    const [recordingExtension, setRecordingExtension] = useState<'mp4' | 'webm'>('mp4')
+    const [isSavingProject, setIsSavingProject] = useState(false)
     const mediaRecorderRef = useRef<MediaRecorder | null>(null)
     const chunksRef = useRef<Blob[]>([])
     const previewResumeSceneIdRef = useRef<string | null>(null)
+    const endTimeoutRef = useRef<number | null>(null)
+
+    const clearEndTimeout = () => {
+        if (endTimeoutRef.current !== null) {
+            window.clearTimeout(endTimeoutRef.current)
+            endTimeoutRef.current = null
+        }
+    }
 
     const getExportStageDimensions = useCallback(() => {
         const viewportWidth = window.innerWidth
@@ -154,13 +164,16 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
                 }
                 if (videoTrack && (videoTrack as any).cropTo) await (videoTrack as any).cropTo(cropTarget)
             }
+            // Prefer MP4/H.264 first; fall back to WebM if browser doesn't support it.
             const mimeTypeCandidates = [
+                { mimeType: 'video/mp4;codecs=h264,aac', extension: 'mp4' as const },
+                { mimeType: 'video/mp4;codecs=h264', extension: 'mp4' as const },
+                { mimeType: 'video/mp4;codecs=avc1', extension: 'mp4' as const },
+                { mimeType: 'video/mp4', extension: 'mp4' as const },
                 { mimeType: 'video/webm;codecs=av1,opus', extension: 'webm' as const },
                 { mimeType: 'video/webm;codecs=vp9,opus', extension: 'webm' as const },
                 { mimeType: 'video/webm;codecs=vp9', extension: 'webm' as const },
                 { mimeType: 'video/webm;codecs=vp8,opus', extension: 'webm' as const },
-                { mimeType: 'video/mp4;codecs=h264', extension: 'mp4' as const },
-                { mimeType: 'video/mp4', extension: 'mp4' as const },
                 { mimeType: 'video/webm', extension: 'webm' as const },
             ]
             const selectedFormat = mimeTypeCandidates.find(({ mimeType }) => MediaRecorder.isTypeSupported(mimeType))
@@ -198,6 +211,7 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
     }
 
     const stopRegionRecording = useCallback(() => {
+        clearEndTimeout()
         if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
             mediaRecorderRef.current.stop()
             setIsRecording(false)
@@ -213,14 +227,18 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
     )
 
     const endFullPreviewAndRestore = useCallback(() => {
+        clearEndTimeout()
         const resume = previewResumeSceneIdRef.current
         previewResumeSceneIdRef.current = null
+
         setIsFullCyclePreview(false)
         setAnimationFinished(false)
         setIsPlaying(false)
-        useStore.getState().setFadeEffect('none')
-        if (!resume) return
+
         const st = useStore.getState()
+        st.setFadeEffect('none')
+
+        if (!resume) return
         if (resume === 'INTRO' || resume === 'OUTRO') {
             setActiveScene(resume)
         } else if (st.scenes.some((s) => s.id === resume)) {
@@ -228,15 +246,20 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
         } else {
             setActiveScene(st.scenes[0].id)
         }
+        st.triggerReset()
     }, [setActiveScene, setAnimationFinished, setIsFullCyclePreview, setIsPlaying])
 
     const toggleFullCyclePreview = useCallback(() => {
         if (isRecording) return
         const st = useStore.getState()
+
         if (st.isFullCyclePreview) {
             endFullPreviewAndRestore()
             return
         }
+
+        // START Preview
+        clearEndTimeout()
         previewResumeSceneIdRef.current = st.activeSceneId
         setIsFullCyclePreview(true)
         setAnimationFinished(false)
@@ -244,7 +267,10 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
         st.setFadeEffect('fadeIn')
         st.setActiveScene(st.showIntro ? 'INTRO' : st.scenes[0].id)
         st.triggerReset()
-        setTimeout(() => setIsPlaying(true), 1000)
+
+        // Small delay to allow fade-in to settle
+        const t = window.setTimeout(() => setIsPlaying(true), 1000)
+        endTimeoutRef.current = t
     }, [endFullPreviewAndRestore, isRecording, setAnimationFinished, setIsFullCyclePreview, setIsPlaying])
 
     useEffect(() => {
@@ -270,16 +296,59 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
 
     useEffect(() => {
         if (!isFullCyclePreview || isRecording || !animationFinished) return
-        if (activeSceneId === 'INTRO') { setAnimationFinished(false); setIsPlaying(false); setActiveScene(scenes[0].id); triggerReset(); setTimeout(() => setIsPlaying(true), 500); return }
-        if (activeSceneId === 'OUTRO') {
-            useStore.getState().setFadeEffect('fadeOut')
-            setTimeout(() => { endFullPreviewAndRestore() }, 1000)
+
+        if (activeSceneId === 'INTRO') {
+            setAnimationFinished(false)
+            setIsPlaying(false)
+            setActiveScene(scenes[0].id)
+            triggerReset()
+            const t = window.setTimeout(() => setIsPlaying(true), 500)
+            endTimeoutRef.current = t
             return
         }
+
+        if (activeSceneId === 'OUTRO') {
+            useStore.getState().setFadeEffect('fadeOut')
+            clearEndTimeout()
+            const t = window.setTimeout(() => { endFullPreviewAndRestore() }, 1000)
+            endTimeoutRef.current = t
+            return
+        }
+
         const idx = scenes.findIndex(s => s.id === activeSceneId)
-        if (idx !== -1 && idx < scenes.length - 1) { setAnimationFinished(false); setIsPlaying(false); setTimeout(() => { setActiveScene(scenes[idx + 1].id); setTimeout(() => { triggerReset(); setTimeout(() => setIsPlaying(true), 100) }, 500) }, 300) }
-        else { setAnimationFinished(false); setIsPlaying(false); if (showOutro) setTimeout(() => setActiveScene('OUTRO'), 500); else { useStore.getState().setFadeEffect('fadeOut'); setTimeout(() => { endFullPreviewAndRestore() }, 1000) } }
+        if (idx !== -1 && idx < scenes.length - 1) {
+            setAnimationFinished(false)
+            setIsPlaying(false)
+            const t = window.setTimeout(() => {
+                setActiveScene(scenes[idx + 1].id)
+                const t2 = window.setTimeout(() => {
+                    triggerReset()
+                    const t3 = window.setTimeout(() => setIsPlaying(true), 100)
+                    endTimeoutRef.current = t3
+                }, 500)
+                endTimeoutRef.current = t2
+            }, 300)
+            endTimeoutRef.current = t
+        } else {
+            setAnimationFinished(false)
+            setIsPlaying(false)
+            if (showOutro) {
+                const t = window.setTimeout(() => setActiveScene('OUTRO'), 500)
+                endTimeoutRef.current = t
+            } else {
+                useStore.getState().setFadeEffect('fadeOut')
+                clearEndTimeout()
+                const t = window.setTimeout(() => { endFullPreviewAndRestore() }, 1000)
+                endTimeoutRef.current = t
+            }
+        }
     }, [isFullCyclePreview, isRecording, animationFinished, activeSceneId, scenes, showOutro, endFullPreviewAndRestore, setAnimationFinished, setIsPlaying, setActiveScene, triggerReset])
+
+    useEffect(() => {
+        return () => {
+            clearEndTimeout()
+        }
+    }, [])
 
     const onDrop = useCallback((acceptedFiles: File[]) => addScreenshots(acceptedFiles.map(file => URL.createObjectURL(file))), [addScreenshots])
     const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, accept: { 'image/*': [] } })
@@ -607,6 +676,64 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
                 {/* === AUDIO === */}
                 <AudioPanel />
 
+                {/* === PROJECT SAVE / LOAD === */}
+                <section className="space-y-3">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-white/40 flex items-center gap-2">
+                        <Save size={14} /> Project
+                    </h3>
+                    <div className="bg-white/[0.02] rounded-xl p-4 border border-white/5 space-y-3">
+                        <p className="text-[11px] text-white/35 leading-relaxed">
+                            Save your current work as a <span className="text-white/55 font-medium">.vtfy</span> project file and reopen it later — all scenes, text, images, and settings included.
+                        </p>
+                        <div className="flex gap-2">
+                            <button
+                                type="button"
+                                disabled={isSavingProject || isRecording}
+                                onClick={async () => {
+                                    setIsSavingProject(true)
+                                    try {
+                                        await saveProject(useStore.getState() as unknown as Record<string, unknown>)
+                                    } finally {
+                                        setIsSavingProject(false)
+                                    }
+                                }}
+                                className={clsx(
+                                    'flex-1 py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all',
+                                    isSavingProject || isRecording
+                                        ? 'opacity-40 cursor-not-allowed bg-white/5 text-white/40'
+                                        : 'bg-white/8 hover:bg-white/12 text-white border border-white/10 hover:border-white/20'
+                                )}
+                            >
+                                {isSavingProject ? (
+                                    <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                ) : (
+                                    <Save size={14} />
+                                )}
+                                {isSavingProject ? 'Saving…' : 'Save Project'}
+                            </button>
+                            <button
+                                type="button"
+                                disabled={isRecording}
+                                onClick={async () => {
+                                    const restored = await loadProject()
+                                    if (!restored) return
+                                    // Merge only serializable state keys back into the store
+                                    useStore.setState(restored as Partial<ReturnType<typeof useStore.getState>>)
+                                }}
+                                className={clsx(
+                                    'flex-1 py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all border',
+                                    isRecording
+                                        ? 'opacity-40 cursor-not-allowed bg-white/5 text-white/40 border-white/5'
+                                        : 'bg-white/8 hover:bg-white/12 text-white border-white/10 hover:border-white/20'
+                                )}
+                            >
+                                <FolderOpen size={14} />
+                                Open Project
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
                 {/* === EXPORT === */}
                 <section className="space-y-4">
                     <h3 className="text-xs font-semibold uppercase tracking-wider text-white/40 flex items-center gap-2">
@@ -646,9 +773,21 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
                     {mediaBlobUrl && !isRecording && (
                         <div className="bg-white/[0.02] rounded-xl p-4 space-y-4 border border-white/5">
                             <video src={mediaBlobUrl} controls className="w-full rounded-lg" />
-                            <a href={mediaBlobUrl} download={`app-promo.${recordingExtension}`} className="block w-full py-3 bg-primary hover:bg-primary/90 text-white text-center rounded-lg font-medium transition-colors">
-                                Download Video
-                            </a>
+                            <div className="space-y-1.5">
+                                <a
+                                    href={mediaBlobUrl}
+                                    download={`app-promo.${recordingExtension}`}
+                                    className="flex items-center justify-center gap-2 w-full py-3 bg-primary hover:bg-primary/90 text-white text-center rounded-lg font-medium transition-colors"
+                                >
+                                    <Download size={15} />
+                                    Download {recordingExtension.toUpperCase()}
+                                </a>
+                                {recordingExtension === 'webm' && (
+                                    <p className="text-[10px] text-white/30 text-center">
+                                        Your browser recorded as WebM. For MP4, try Chrome 130+ or Edge.
+                                    </p>
+                                )}
+                            </div>
                         </div>
                     )}
                 </section>

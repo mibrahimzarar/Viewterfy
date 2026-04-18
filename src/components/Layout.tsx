@@ -1,4 +1,4 @@
-import { useStore, type Scene } from '../store/useStore'
+import { useStore } from '../store/useStore'
 import { ControlPanel } from './ControlPanel'
 import { PhoneMockup } from './PhoneMockup'
 import { clsx } from 'clsx'
@@ -6,33 +6,25 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useCallback, useEffect, useState } from 'react'
 import { IntroScreen } from './IntroScreen'
 import { OutroScreen } from './OutroScreen'
-import { patterns } from './GenericBackgroundPicker'
+import { getBackgroundStyle } from './GenericBackgroundPicker'
 
-// Helper to get background CSS
-const getBackgroundStyle = (scene: Scene) => {
-    switch (scene.backgroundType) {
-        case 'gradient':
-            return { background: scene.backgroundGradient }
-        case 'solid':
-            return { background: scene.backgroundColor }
-        case 'pattern':
-            return {
-                background: scene.backgroundColor,
-                backgroundImage: patterns[scene.backgroundPattern],
-            }
-        case 'image':
-            return scene.backgroundImage
-                ? { backgroundImage: `url(${scene.backgroundImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-                : { background: scene.backgroundColor }
-        default:
-            return { background: scene.backgroundGradient }
-    }
-}
 
 export const Layout = () => {
-    const { scenes, activeSceneId, lockedDimensions, aspectRatio, fadeEffect, isExporting } = useStore()
-    const activeScene = scenes.find(s => s.id === activeSceneId) || scenes[0]
-    const { headline, subtitle, headlineScale, subtitleScale, mockupScale } = activeScene
+    const {
+        scenes, activeSceneId, lockedDimensions, aspectRatio, fadeEffect, isExporting,
+        introBackground, outroBackground
+    } = useStore()
+
+    const activeScene = activeSceneId === 'INTRO'
+        ? introBackground
+        : activeSceneId === 'OUTRO'
+            ? outroBackground
+            : (scenes.find(s => s.id === activeSceneId) || scenes[0])
+
+    // For text sizing and mockup placement, we still need the main scene properties
+    // when a regular scene is active. If INTRO/OUTRO, we use first/last scene as fallback.
+    const sceneData = scenes.find(s => s.id === activeSceneId) || scenes[0]
+    const { headline, subtitle, headlineScale, subtitleScale, mockupScale } = sceneData
 
     const hasText = headline.trim().length > 0 || subtitle.trim().length > 0
     const headingFontSize = aspectRatio === '1:1'
@@ -257,7 +249,7 @@ export const Layout = () => {
                     {/* Background - INSIDE canvas-stage */}
                     <div
                         className="absolute inset-0 transition-all duration-700"
-                        style={getBackgroundStyle(activeScene)}
+                        style={getBackgroundStyle(activeScene as any)}
                     />
 
                     {/* Scene Transition Container */}
@@ -317,7 +309,7 @@ export const Layout = () => {
                                         "z-10 flex flex-col justify-center",
                                         aspectRatio === '1:1'
                                             ? "order-2 md:order-1 text-center md:text-left items-center md:items-start w-full md:max-w-[290px] px-4 md:px-0 space-y-1"
-                                            : "order-2 text-center items-center px-3 md:px-4 max-w-[85%] md:max-w-[90%] -mt-24 md:-mt-32 space-y-1.5 md:space-y-2"
+                                            : "order-2 text-center items-center px-3 md:px-4 max-w-[85%] md:max-w-[90%] -mt-18 md:-mt-25 space-y-1.5 md:space-y-2"
                                     )}>
                                         {headline && (
                                             <h1 className={clsx(
@@ -343,7 +335,7 @@ export const Layout = () => {
                                         ? (hasText ? "order-1 md:order-2 flex-shrink-0 md:ml-auto" : "")
                                         : "order-1 flex-1"
                                 )} style={{ transform: `scale(${effectiveMockupScale})` }}>
-                                    <PhoneMockup scene={activeScene} sceneId={activeSceneId} />
+                                    <PhoneMockup scene={sceneData} sceneId={activeSceneId} />
                                 </div>
 
                             </motion.div>

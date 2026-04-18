@@ -1,16 +1,14 @@
 import { motion } from 'framer-motion'
 import { useStore } from '../store/useStore'
-import { getBackgroundStyle } from './GenericBackgroundPicker'
 
 export const IntroScreen = () => {
-    const { introLogo, introTitle, introSubtitle, introBackground, aspectRatio } = useStore()
+    const { introLogo, introTitle, introSubtitle, aspectRatio } = useStore()
 
     const isVertical = aspectRatio === '9:16'
 
     return (
         <div
             className="w-full h-full flex flex-col items-center justify-center p-8 text-center relative overflow-hidden"
-            style={getBackgroundStyle(introBackground)}
         >
             {/* Animated Particles/Glow (Optional - borrowing from Layout ambient feel) */}
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_rgba(0,0,0,0.4)_100%)] pointer-events-none" />
@@ -54,7 +52,7 @@ export const IntroScreen = () => {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.4, duration: 0.6 }}
-                        className={`${isVertical ? 'text-sm px-8' : 'text-lg md:text-xl'} text-white/80 font-medium drop-shadow-md`}
+                        className={`${isVertical ? 'text-xs px-8' : 'text-base md:text-lg'} text-white/80 font-medium drop-shadow-md`}
                     >
                         {introSubtitle}
                     </motion.p>
