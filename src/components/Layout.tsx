@@ -338,7 +338,7 @@ export const Layout = () => {
                                                     ease: [0.22, 1, 0.36, 1]
                                                 }}
                                                 className={clsx(
-                                                    "font-medium text-white/80 drop-shadow-md"
+                                                    "font-bold text-white/80 drop-shadow-md"
                                                 )} style={{ fontSize: subtitleFontSize }}>
                                                 {subtitle}
                                             </motion.p>

@@ -762,7 +762,7 @@ function SceneInner({
                                     opacity: s.subOpacity,
                                     transform: `translateY(${s.subY}px)`,
                                     filter: `blur(${s.subBlur}px)`,
-                                    fontSize: subtitlePx * 1.12,
+                                    fontSize: subtitlePx,
                                     color: 'rgba(255,255,255,0.8)',
                                     marginTop: 10,
                                     fontWeight: 700,
