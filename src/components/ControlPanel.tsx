@@ -683,6 +683,18 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
                                 {copiedRenderCommand ? <Check size={14} /> : <Copy size={14} />}
                             </button>
                         </div>
+                        <div className="pt-2 space-y-2 text-[11px] text-white/45 leading-relaxed">
+                            <p className="text-white/70 font-medium text-xs">How to render your final video</p>
+                            <ol className="list-decimal list-inside space-y-1.5">
+                                <li>Select your ratio above (Square or 9:16).</li>
+                                <li>Click <span className="text-white/70">Download Remotion job (JSON)</span> — it saves as <code className="text-white/60">{renderPropsFile}</code>.</li>
+                                <li>Move the JSON file into the <code className="text-white/60">Remotion</code> folder in your project root.</li>
+                                <li>Copy the command above (copy icon) and run it from the same folder as <code className="text-white/60">package.json</code>.</li>
+                            </ol>
+                            <p>
+                                Your rendered video will be saved as <code className="text-white/60">out/viewterfy.mp4</code>. Rename or move it after each render if you want to keep multiple versions.
+                            </p>
+                        </div>
                     </div>
                 </section>
 
