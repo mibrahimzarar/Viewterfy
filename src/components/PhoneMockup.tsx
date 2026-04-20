@@ -109,6 +109,7 @@ export const PhoneMockup = ({ scene, sceneId }: PhoneMockupProps) => {
     // Per-scene timing for full-cycle duration (scroll + post-scroll hold, matches export pacing).
     useEffect(() => {
         const pxPerSec = Math.max(10, scrollSpeed * 5)
+        useStore.getState().setSceneMaxScrollPxById(sceneId, maxScroll)
         if (maxScroll <= 0) {
             useStore.getState().setSceneScrollSecondsById(sceneId, 1.2)
             return

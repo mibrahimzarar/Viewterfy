@@ -4,8 +4,21 @@ import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 import { useStore, type PhoneColor } from '../store/useStore'
 import { AudioPanel } from './AudioPanel'
 import { clsx } from 'clsx'
-import { Upload, X, Smartphone, Type, Settings, Download, CircleDot, RotateCcw, Palette, Play, Pause, Film, Sparkles, Image, Maximize2, Clapperboard, Square, FolderOpen, Save } from 'lucide-react'
+import { Upload, X, Smartphone, Type, Settings, Download, RotateCcw, Palette, Play, Pause, Film, Sparkles, Image, Maximize2, Clapperboard, Square, FolderOpen, Save, Copy, Check } from 'lucide-react'
 import { saveProject, loadProject } from '../utils/projectFile'
+import { buildViewterfyRemotionProps, downloadJson } from '../utils/buildRemotionJob'
+import {
+    PREVIEW_END_FADE_MS,
+    PREVIEW_HOLD_MS_BEFORE_SCENE_SWITCH,
+    PREVIEW_INTRO_HANDOFF_MS,
+    PREVIEW_INTRO_MS,
+    PREVIEW_INTRO_TO_FIRST_PLAY_DELAY_MS,
+    PREVIEW_MS_AFTER_RESET_TO_PLAY,
+    PREVIEW_MS_AFTER_SWITCH_TO_RESET,
+    PREVIEW_OUTRO_ENTRY_DELAY_MS,
+    PREVIEW_OUTRO_MS,
+    previewBetweenScenesMs,
+} from '../remotion/previewTimeline'
 import { GenericBackgroundPicker } from './GenericBackgroundPicker'
 
 interface ControlPanelProps {
@@ -29,26 +42,20 @@ function estimateFullCycleSeconds(
     showOutro: boolean,
     sceneScrollSecondsById: Record<string, number>,
 ): number {
-    const INTRO_S = 3
-    const OUTRO_S = 4
-    const INTRO_HANDOFF = 0.8
-    const BETWEEN_SCENES = 0.9
-    const OUTRO_ENTRY = 0.5
-    const END_FADE = 1
     let t = 0
     if (showIntro) {
-        t += INTRO_S
-        if (scenes.length > 0) t += INTRO_HANDOFF
+        t += PREVIEW_INTRO_MS / 1000
+        if (scenes.length > 0) t += PREVIEW_INTRO_HANDOFF_MS / 1000
     }
     scenes.forEach((scene, i) => {
         t += sceneScrollSecondsById[scene.id] ?? DEFAULT_SCENE_SECONDS
-        if (i < scenes.length - 1) t += BETWEEN_SCENES
+        if (i < scenes.length - 1) t += previewBetweenScenesMs() / 1000
     })
     if (showOutro) {
-        if (scenes.length > 0) t += OUTRO_ENTRY
-        t += OUTRO_S
+        if (scenes.length > 0) t += PREVIEW_OUTRO_ENTRY_DELAY_MS / 1000
+        t += PREVIEW_OUTRO_MS / 1000
     }
-    t += END_FADE
+    t += PREVIEW_END_FADE_MS / 1000
     return t
 }
 
@@ -76,12 +83,9 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
     const activeScene = scenes.find(s => s.id === activeSceneId) || scenes[0]
     const { screenshots, headline, subtitle, phoneColor, scrollSpeed, headlineScale, subtitleScale, mockupScale } = activeScene
 
-    const [isRecording, setIsRecording] = useState(false)
-    const [mediaBlobUrl, setMediaBlobUrl] = useState<string | null>(null)
-    const [recordingExtension, setRecordingExtension] = useState<'mp4' | 'webm'>('mp4')
+    const [isBuildingRemotionJob, setIsBuildingRemotionJob] = useState(false)
     const [isSavingProject, setIsSavingProject] = useState(false)
-    const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-    const chunksRef = useRef<Blob[]>([])
+    const [copiedRenderCommand, setCopiedRenderCommand] = useState(false)
     const previewResumeSceneIdRef = useRef<string | null>(null)
     const endTimeoutRef = useRef<number | null>(null)
 
@@ -92,161 +96,42 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
         }
     }
 
-    const getExportStageDimensions = useCallback(() => {
-        const viewportWidth = window.innerWidth
-        const viewportHeight = window.innerHeight
-        const padding = 0
-        const maxWidth = Math.max(320, viewportWidth - padding * 2)
-        const maxHeight = Math.max(320, viewportHeight - padding * 2)
-
-        if (aspectRatio === '1:1') {
-            const size = Math.floor(Math.min(maxWidth, maxHeight))
-            return { width: size, height: size }
+    const handleDownloadRemotionJob = useCallback(async () => {
+        setIsBuildingRemotionJob(true)
+        try {
+            const st = useStore.getState()
+            const plain: Record<string, unknown> = {}
+            for (const [k, v] of Object.entries(st)) {
+                if (typeof v === 'function') continue
+                plain[k] = v
+            }
+            const props = await buildViewterfyRemotionProps(plain)
+            const jobFileName = aspectRatio === '1:1' ? 'square.json' : '9-16.json'
+            downloadJson(jobFileName, props)
+        } catch (err) {
+            console.error(err)
+            window.alert(
+                'Could not build the Remotion job file. Run a full preview once so scroll timings are measured, then try again.',
+            )
+        } finally {
+            setIsBuildingRemotionJob(false)
         }
-
-        const ratio = 9 / 16
-        let width = Math.floor(maxHeight * ratio)
-        let height = Math.floor(maxHeight)
-
-        if (width > maxWidth) {
-            width = Math.floor(maxWidth)
-            height = Math.floor(width / ratio)
-        }
-
-        return { width, height }
     }, [aspectRatio])
 
-    // === Recording Logic (unchanged) ===
-    const startRegionRecording = async () => {
+    const renderPropsFile = aspectRatio === '1:1' ? 'square.json' : '9-16.json'
+    const renderCommand = `npm run remotion:render -- --props=./Remotion/${renderPropsFile}`
+
+    const handleCopyRenderCommand = useCallback(async () => {
         try {
-            useStore.getState().setIsFullCyclePreview(false)
-            previewResumeSceneIdRef.current = null
-            setMediaBlobUrl(null)
-            chunksRef.current = []
-            const exportDimensions = getExportStageDimensions()
-            useStore.setState({
-                isExporting: true,
-                isPlaying: false,
-                animationFinished: false,
-                isFullCyclePreview: false, // Ensure we're not in preview mode
-                lockedDimensions: exportDimensions,
-            })
-            document.body.style.cursor = 'none'
-
-            await new Promise((resolve) => window.setTimeout(resolve, 250))
-
-            const stream = await navigator.mediaDevices.getDisplayMedia({
-                video: {
-                    displaySurface: 'browser',
-                    width: { ideal: 3840, max: 3840 },
-                    height: { ideal: 2160, max: 2160 },
-                    frameRate: { ideal: 60, max: 60 },
-                    cursor: 'never',
-                } as any,
-                audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-                preferCurrentTab: true,
-                systemAudio: 'include',
-            } as any)
-            const canvasStage = document.getElementById('canvas-stage')
-            if (canvasStage && (window as any).CropTarget) {
-                const cropTarget = await (window as any).CropTarget.fromElement(canvasStage)
-                const [videoTrack] = stream.getVideoTracks()
-                if (videoTrack) {
-                    videoTrack.contentHint = 'detail'
-                    try {
-                        await videoTrack.applyConstraints({
-                            width: 3840,
-                            height: 2160,
-                            frameRate: 60,
-                        })
-                    } catch {
-                        // Browsers may ignore or reject exact screen-capture constraints.
-                    }
-                }
-                if (videoTrack && (videoTrack as any).cropTo) await (videoTrack as any).cropTo(cropTarget)
-            }
-            // Prioritize MP4/H.264 for universal compatibility across PC and Mobile.
-            // Chrome/Edge 130+ support recording natively to MP4.
-            const mimeTypeCandidates = [
-                { mimeType: 'video/mp4;codecs=h264,aac', extension: 'mp4' as const },
-                { mimeType: 'video/mp4;codecs=h264,opus', extension: 'mp4' as const },
-                { mimeType: 'video/mp4;codecs=h264', extension: 'mp4' as const },
-                { mimeType: 'video/mp4;codecs=avc1,aac', extension: 'mp4' as const },
-                { mimeType: 'video/mp4;codecs=avc1', extension: 'mp4' as const },
-                { mimeType: 'video/mp4', extension: 'mp4' as const },
-                { mimeType: 'video/webm;codecs=vp8,opus', extension: 'webm' as const },
-                { mimeType: 'video/webm;codecs=vp8', extension: 'webm' as const },
-                { mimeType: 'video/webm;codecs=vp9,opus', extension: 'webm' as const },
-                { mimeType: 'video/webm', extension: 'webm' as const },
-            ]
-            const selectedFormat = mimeTypeCandidates.find(({ mimeType }) => MediaRecorder.isTypeSupported(mimeType))
-                ?? { mimeType: 'video/webm', extension: 'webm' as const }
-            
-            setRecordingExtension(selectedFormat.extension)
-
-            // Initialize the sequence state BEFORE starting the recorder
-            const firstSceneId = useStore.getState().scenes[0].id
-            const startSceneId = useStore.getState().showIntro ? 'INTRO' : firstSceneId
-            
-            // Critical: Set start scene and reset signals before recorder starts
-            useStore.setState({ 
-                activeSceneId: startSceneId,
-                animationFinished: false,
-                isPlaying: false
-            })
-
-            // Allow a tiny delay for React to reflect the scene change in the DOM
-            await new Promise(r => setTimeout(r, 100))
-
-            // Set bitrate to 12 Mbps for optimal high-quality playback on mobile decoders
-            const recorder = new MediaRecorder(stream, {
-                mimeType: selectedFormat.mimeType,
-                videoBitsPerSecond: 12000000, 
-                audioBitsPerSecond: 128000,
-            })
-            mediaRecorderRef.current = recorder
-            recorder.ondataavailable = (event) => {
-                if (event.data.size > 0) {
-                    chunksRef.current.push(event.data)
-                }
-            }
-            recorder.onstop = () => {
-                const blob = new Blob(chunksRef.current, { type: selectedFormat.mimeType })
-                setMediaBlobUrl(URL.createObjectURL(blob))
-                stream.getTracks().forEach(track => track.stop())
-            }
-            // Use 1000ms timeslice to ensure data is periodically saved to blobs
-            recorder.start(1000)
-            setIsRecording(true)
-            useStore.getState().setFadeEffect('fadeIn')
-            
-            // Start the visual sequence after a short warmup
-            setTimeout(() => {
-                useStore.getState().triggerReset()
-                useStore.getState().setIsPlaying(true)
-            }, 800)
-        } catch (err) {
-            console.error("Recording failed", err)
-            document.body.style.cursor = ''
-            useStore.setState({
-                isExporting: false,
-                lockedDimensions: null,
-                fadeEffect: 'none',
-            })
-            setIsRecording(false)
+            await navigator.clipboard.writeText(renderCommand)
+            setCopiedRenderCommand(true)
+            window.setTimeout(() => setCopiedRenderCommand(false), 1400)
+        } catch {
+            window.alert('Could not copy command. Please copy it manually.')
         }
-    }
+    }, [renderCommand])
 
-    const stopRegionRecording = useCallback(() => {
-        clearEndTimeout()
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-            mediaRecorderRef.current.stop()
-            setIsRecording(false)
-        }
-        document.body.style.cursor = ''
-    }, [])
-
-    const { animationFinished, setAnimationFinished, setIsExporting, isFullCyclePreview, setIsFullCyclePreview, sceneScrollSecondsById } = useStore()
+    const { animationFinished, setAnimationFinished, isFullCyclePreview, setIsFullCyclePreview, sceneScrollSecondsById } = useStore()
 
     const estimatedFullCycleSeconds = useMemo(
         () => estimateFullCycleSeconds(scenes, showIntro, showOutro, sceneScrollSecondsById),
@@ -277,7 +162,6 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
     }, [setActiveScene, setAnimationFinished, setIsFullCyclePreview, setIsPlaying])
 
     const toggleFullCyclePreview = useCallback(() => {
-        if (isRecording) return
         const st = useStore.getState()
 
         if (st.isFullCyclePreview) {
@@ -298,38 +182,23 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
         // Small delay to allow fade-in to settle
         const t = window.setTimeout(() => setIsPlaying(true), 1000)
         endTimeoutRef.current = t
-    }, [endFullPreviewAndRestore, isRecording, setAnimationFinished, setIsFullCyclePreview, setIsPlaying])
+    }, [endFullPreviewAndRestore, setAnimationFinished, setIsFullCyclePreview, setIsPlaying])
 
     useEffect(() => {
-        if (!isRecording) return
-        if (activeSceneId === 'INTRO') { const t = setTimeout(() => useStore.getState().setAnimationFinished(true), 3000); return () => clearTimeout(t) }
-        if (activeSceneId === 'OUTRO') { const t = setTimeout(() => useStore.getState().setAnimationFinished(true), 4000); return () => clearTimeout(t) }
-    }, [isRecording, activeSceneId])
+        if (!isFullCyclePreview) return
+        if (activeSceneId === 'INTRO') { const t = setTimeout(() => useStore.getState().setAnimationFinished(true), PREVIEW_INTRO_MS); return () => clearTimeout(t) }
+        if (activeSceneId === 'OUTRO') { const t = setTimeout(() => useStore.getState().setAnimationFinished(true), PREVIEW_OUTRO_MS); return () => clearTimeout(t) }
+    }, [isFullCyclePreview, activeSceneId])
 
     useEffect(() => {
-        if (!isFullCyclePreview || isRecording) return
-        if (activeSceneId === 'INTRO') { const t = setTimeout(() => useStore.getState().setAnimationFinished(true), 3000); return () => clearTimeout(t) }
-        if (activeSceneId === 'OUTRO') { const t = setTimeout(() => useStore.getState().setAnimationFinished(true), 4000); return () => clearTimeout(t) }
-    }, [isFullCyclePreview, isRecording, activeSceneId])
-
-    useEffect(() => {
-        if (!isRecording || !animationFinished) return
-        if (activeSceneId === 'INTRO') { setAnimationFinished(false); setIsPlaying(false); setActiveScene(scenes[0].id); triggerReset(); setTimeout(() => setIsPlaying(true), 500); return }
-        if (activeSceneId === 'OUTRO') { useStore.getState().setFadeEffect('fadeOut'); setTimeout(() => { stopRegionRecording(); setIsExporting(false); setAnimationFinished(false); setIsPlaying(false); useStore.getState().setLockedDimensions(null); useStore.getState().setFadeEffect('none') }, 1000); return }
-        const idx = scenes.findIndex(s => s.id === activeSceneId)
-        if (idx !== -1 && idx < scenes.length - 1) { setAnimationFinished(false); setIsPlaying(false); setTimeout(() => { setActiveScene(scenes[idx + 1].id); setTimeout(() => { triggerReset(); setTimeout(() => setIsPlaying(true), 100) }, 500) }, 300) }
-        else { setAnimationFinished(false); setIsPlaying(false); if (showOutro) setTimeout(() => setActiveScene('OUTRO'), 500); else { useStore.getState().setFadeEffect('fadeOut'); setTimeout(() => { stopRegionRecording(); setIsExporting(false); useStore.getState().setLockedDimensions(null); useStore.getState().setFadeEffect('none') }, 1000) } }
-    }, [isRecording, animationFinished, activeSceneId, scenes, showOutro, stopRegionRecording, setIsExporting, setAnimationFinished, setIsPlaying, setActiveScene, triggerReset])
-
-    useEffect(() => {
-        if (!isFullCyclePreview || isRecording || !animationFinished) return
+        if (!isFullCyclePreview || !animationFinished) return
 
         if (activeSceneId === 'INTRO') {
             setAnimationFinished(false)
             setIsPlaying(false)
             setActiveScene(scenes[0].id)
             triggerReset()
-            const t = window.setTimeout(() => setIsPlaying(true), 500)
+            const t = window.setTimeout(() => setIsPlaying(true), PREVIEW_INTRO_TO_FIRST_PLAY_DELAY_MS)
             endTimeoutRef.current = t
             return
         }
@@ -350,17 +219,17 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
                 setActiveScene(scenes[idx + 1].id)
                 const t2 = window.setTimeout(() => {
                     triggerReset()
-                    const t3 = window.setTimeout(() => setIsPlaying(true), 100)
+                    const t3 = window.setTimeout(() => setIsPlaying(true), PREVIEW_MS_AFTER_RESET_TO_PLAY)
                     endTimeoutRef.current = t3
-                }, 500)
+                }, PREVIEW_MS_AFTER_SWITCH_TO_RESET)
                 endTimeoutRef.current = t2
-            }, 300)
+            }, PREVIEW_HOLD_MS_BEFORE_SCENE_SWITCH)
             endTimeoutRef.current = t
         } else {
             setAnimationFinished(false)
             setIsPlaying(false)
             if (showOutro) {
-                const t = window.setTimeout(() => setActiveScene('OUTRO'), 500)
+                const t = window.setTimeout(() => setActiveScene('OUTRO'), PREVIEW_OUTRO_ENTRY_DELAY_MS)
                 endTimeoutRef.current = t
             } else {
                 useStore.getState().setFadeEffect('fadeOut')
@@ -369,7 +238,7 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
                 endTimeoutRef.current = t
             }
         }
-    }, [isFullCyclePreview, isRecording, animationFinished, activeSceneId, scenes, showOutro, endFullPreviewAndRestore, setAnimationFinished, setIsPlaying, setActiveScene, triggerReset])
+    }, [isFullCyclePreview, animationFinished, activeSceneId, scenes, showOutro, endFullPreviewAndRestore, setAnimationFinished, setIsPlaying, setActiveScene, triggerReset])
 
     useEffect(() => {
         return () => {
@@ -481,10 +350,10 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
                     <button
                         type="button"
                         onClick={toggleFullCyclePreview}
-                        disabled={isRecording}
+                        disabled={isBuildingRemotionJob}
                         className={clsx(
                             "group relative w-full overflow-hidden rounded-xl border px-4 py-2.5 text-sm font-medium transition-all duration-300",
-                            isRecording && "cursor-not-allowed opacity-40",
+                            isBuildingRemotionJob && "cursor-not-allowed opacity-40",
                             isFullCyclePreview
                                 ? "border-fuchsia-400/35 bg-fuchsia-500/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
                                 : "border-white/10 bg-white/[0.04] text-white/90 hover:border-white/18 hover:bg-white/[0.07]"
@@ -715,7 +584,7 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
                         <div className="flex gap-2">
                             <button
                                 type="button"
-                                disabled={isSavingProject || isRecording}
+                                disabled={isSavingProject || isBuildingRemotionJob}
                                 onClick={async () => {
                                     setIsSavingProject(true)
                                     try {
@@ -726,7 +595,7 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
                                 }}
                                 className={clsx(
                                     'flex-1 py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all',
-                                    isSavingProject || isRecording
+                                    isSavingProject || isBuildingRemotionJob
                                         ? 'opacity-40 cursor-not-allowed bg-white/5 text-white/40'
                                         : 'bg-white/8 hover:bg-white/12 text-white border border-white/10 hover:border-white/20'
                                 )}
@@ -740,7 +609,7 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
                             </button>
                             <button
                                 type="button"
-                                disabled={isRecording}
+                                disabled={isBuildingRemotionJob}
                                 onClick={async () => {
                                     const restored = await loadProject()
                                     if (!restored) return
@@ -749,7 +618,7 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
                                 }}
                                 className={clsx(
                                     'flex-1 py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all border',
-                                    isRecording
+                                    isBuildingRemotionJob
                                         ? 'opacity-40 cursor-not-allowed bg-white/5 text-white/40 border-white/5'
                                         : 'bg-white/8 hover:bg-white/12 text-white border-white/10 hover:border-white/20'
                                 )}
@@ -776,47 +645,45 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
                         </button>
                     </div>
 
-                    {!isRecording ? (
-                        <button
-                            type="button"
-                            onClick={startRegionRecording}
-                            disabled={isFullCyclePreview}
-                            className={clsx(
-                                "w-full py-4 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-lg shadow-red-500/25",
-                                isFullCyclePreview
-                                    ? "cursor-not-allowed opacity-45"
-                                    : "hover:from-red-600 hover:to-pink-600 active:scale-[0.98]"
-                            )}
-                        >
-                            <CircleDot size={18} /> Generate Video
-                        </button>
-                    ) : (
-                        <div className="w-full py-4 bg-white/5 text-white rounded-xl font-medium flex items-center justify-center gap-3">
-                            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                            Generating...
-                        </div>
-                    )}
+                    <button
+                        type="button"
+                        onClick={() => void handleDownloadRemotionJob()}
+                        disabled={isFullCyclePreview || isBuildingRemotionJob}
+                        className={clsx(
+                            "w-full py-4 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-lg shadow-violet-500/20",
+                            isFullCyclePreview || isBuildingRemotionJob
+                                ? "cursor-not-allowed opacity-45"
+                                : "hover:from-violet-500 hover:to-fuchsia-500 active:scale-[0.98]"
+                        )}
+                    >
+                        {isBuildingRemotionJob ? (
+                            <>
+                                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                Building job...
+                            </>
+                        ) : (
+                            <>
+                                <Clapperboard size={18} /> Download Remotion job (JSON)
+                            </>
+                        )}
+                    </button>
 
-                    {mediaBlobUrl && !isRecording && (
-                        <div className="bg-white/[0.02] rounded-xl p-4 space-y-4 border border-white/5">
-                            <video src={mediaBlobUrl} controls className="w-full rounded-lg" />
-                            <div className="space-y-1.5">
-                                <a
-                                    href={mediaBlobUrl}
-                                    download={`app-promo.${recordingExtension}`}
-                                    className="flex items-center justify-center gap-2 w-full py-3 bg-primary hover:bg-primary/90 text-white text-center rounded-lg font-medium transition-colors"
-                                >
-                                    <Download size={15} />
-                                    Download {recordingExtension.toUpperCase()}
-                                </a>
-                                {recordingExtension === 'webm' && (
-                                    <p className="text-[10px] text-white/30 text-center">
-                                        Your browser recorded as WebM. For MP4, try Chrome 130+ or Edge.
-                                    </p>
-                                )}
-                            </div>
+                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 space-y-2 text-[11px] text-white/50 leading-relaxed">
+                        <div className="flex items-center justify-between gap-2">
+                            <code className="block flex-1 rounded-lg bg-black/40 px-3 py-2 text-[10px] text-emerald-200/90 font-mono whitespace-pre-wrap break-all">
+                                {renderCommand}
+                            </code>
+                            <button
+                                type="button"
+                                onClick={() => void handleCopyRenderCommand()}
+                                className="shrink-0 rounded-lg border border-white/10 bg-white/5 p-2 text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+                                title="Copy render command"
+                                aria-label="Copy render command"
+                            >
+                                {copiedRenderCommand ? <Check size={14} /> : <Copy size={14} />}
+                            </button>
                         </div>
-                    )}
+                    </div>
                 </section>
 
             </div>

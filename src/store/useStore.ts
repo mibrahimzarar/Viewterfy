@@ -78,6 +78,9 @@ interface AppState {
     /** Measured scroll segment + tail hold per scene id (updated from PhoneMockup). */
     sceneScrollSecondsById: Record<string, number>
     setSceneScrollSecondsById: (sceneId: string, seconds: number) => void
+    /** Measured max scroll pixels per scene (for Remotion frame-accurate scroll). */
+    sceneMaxScrollPxById: Record<string, number>
+    setSceneMaxScrollPxById: (sceneId: string, px: number) => void
     animationFinished: boolean
     setAnimationFinished: (finished: boolean) => void
 
@@ -349,6 +352,11 @@ export const useStore = create<AppState>((set) => ({
     setSceneScrollSecondsById: (sceneId, seconds) =>
         set((state) => ({
             sceneScrollSecondsById: { ...state.sceneScrollSecondsById, [sceneId]: seconds },
+        })),
+    sceneMaxScrollPxById: {},
+    setSceneMaxScrollPxById: (sceneId, px) =>
+        set((state) => ({
+            sceneMaxScrollPxById: { ...state.sceneMaxScrollPxById, [sceneId]: px },
         })),
     animationFinished: false,
     setAnimationFinished: (animationFinished) => set({ animationFinished }),

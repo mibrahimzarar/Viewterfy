@@ -81,7 +81,6 @@ const EXCLUDED_KEYS = new Set([
     'animationFinished',
     'lockedDimensions',
     'resetScrollSignal',
-    'sceneScrollSecondsById',
     'videoDuration',
 ])
 

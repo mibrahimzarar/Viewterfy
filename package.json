@@ -7,9 +7,14 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "remotion:studio": "remotion studio src/remotion/register.tsx",
+    "remotion:render": "remotion render src/remotion/register.tsx Viewterfy out/viewterfy.mp4"
   },
   "dependencies": {
+    "@remotion/bundler": "^4.0.448",
+    "@remotion/cli": "^4.0.448",
+    "@remotion/renderer": "^4.0.448",
     "clsx": "^2.1.1",
     "framer-motion": "^12.31.0",
     "lucide-react": "^0.563.0",
@@ -18,8 +23,10 @@
     "react-dom": "^19.2.0",
     "react-dropzone": "^14.4.0",
     "react-media-recorder": "^1.7.2",
+    "remotion": "^4.0.448",
     "tailwind-merge": "^3.4.0",
     "wavesurfer.js": "^7.12.1",
+    "zod": "^4.3.6",
     "zustand": "^5.0.11"
   },
   "devDependencies": {
