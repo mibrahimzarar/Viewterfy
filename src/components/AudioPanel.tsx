@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import WaveSurfer from 'wavesurfer.js'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import { useStore } from '../store/useStore'
+import { AUDIO_EDGE_FADE_SEC, getEdgeFadeGain } from '../audio/fade'
 import { Play, Pause, Music, Volume2, Upload, Trash2, Scissors, AlertCircle } from 'lucide-react'
 
 export const AudioPanel = () => {
@@ -21,10 +22,27 @@ export const AudioPanel = () => {
     const containerRef = useRef<HTMLDivElement>(null)
     const wavesurferRef = useRef<WaveSurfer | null>(null)
     const regionsRef = useRef<any>(null)
+    const audioVolumeRef = useRef(audioVolume)
     const [localIsPlaying, setLocalIsPlaying] = useState(false)
     const [duration, setDuration] = useState(0)
     const [currentTime, setCurrentTime] = useState(0)
     const [error, setError] = useState<string | null>(null)
+
+    const applyPreviewFadeVolume = (ws: WaveSurfer, timeSec: number) => {
+        const region = regionsRef.current?.getRegions()[0]
+        if (!region) {
+            ws.setVolume(audioVolumeRef.current)
+            return
+        }
+        const selectedDuration = Math.max(0, region.end - region.start)
+        if (selectedDuration <= 0) {
+            ws.setVolume(audioVolumeRef.current)
+            return
+        }
+        const positionInTrim = Math.max(0, Math.min(selectedDuration, timeSec - region.start))
+        const gain = getEdgeFadeGain(positionInTrim, selectedDuration, AUDIO_EDGE_FADE_SEC)
+        ws.setVolume(audioVolumeRef.current * gain)
+    }
 
     // File Upload Handler
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -88,11 +106,12 @@ export const AudioPanel = () => {
             })
 
             ws.on('ready', () => {
-                ws.setVolume(audioVolume)
+                applyPreviewFadeVolume(ws, ws.getCurrentTime())
             })
 
             ws.on('audioprocess', (currentTime) => {
                 setCurrentTime(currentTime)
+                applyPreviewFadeVolume(ws, currentTime)
                 const region = regionsRef.current?.getRegions()[0]
                 if (region && (currentTime < region.start || currentTime >= region.end)) {
                     if (ws.isPlaying()) {
@@ -102,12 +121,19 @@ export const AudioPanel = () => {
                             ws.seekTo(region.start / ws.getDuration())
                         }
                     }
+                    return
                 }
             })
 
             ws.on('play', () => setLocalIsPlaying(true))
-            ws.on('pause', () => setLocalIsPlaying(false))
-            ws.on('seeking', (time) => setCurrentTime(time))
+            ws.on('pause', () => {
+                setLocalIsPlaying(false)
+                ws.setVolume(audioVolumeRef.current)
+            })
+            ws.on('seeking', (time) => {
+                setCurrentTime(time)
+                applyPreviewFadeVolume(ws, time)
+            })
             ws.on('error', (err) => {
                 console.error("WaveSurfer Error:", err)
                 setError("Failed to load audio. Please try another file.")
@@ -156,6 +182,7 @@ export const AudioPanel = () => {
                 }
             }
             ws.play()
+            applyPreviewFadeVolume(ws, ws.getCurrentTime())
         } else {
             ws.pause()
         }
@@ -163,7 +190,14 @@ export const AudioPanel = () => {
 
     // Sync Volume
     useEffect(() => {
-        wavesurferRef.current?.setVolume(audioVolume)
+        audioVolumeRef.current = audioVolume
+        const ws = wavesurferRef.current
+        if (!ws) return
+        if (ws.isPlaying()) {
+            applyPreviewFadeVolume(ws, ws.getCurrentTime())
+            return
+        }
+        ws.setVolume(audioVolume)
     }, [audioVolume])
 
     // Toggle Play/Pause

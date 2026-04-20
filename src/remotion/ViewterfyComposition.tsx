@@ -1,4 +1,5 @@
 import type { FC } from 'react'
+import { AUDIO_EDGE_FADE_SEC, getEdgeFadeGain } from '../audio/fade'
 import type { ViewterfyProps } from './viewterfyProps'
 import {
     msToFrames,
@@ -761,10 +762,10 @@ function SceneInner({
                                     opacity: s.subOpacity,
                                     transform: `translateY(${s.subY}px)`,
                                     filter: `blur(${s.subBlur}px)`,
-                                    fontSize: subtitlePx,
+                                    fontSize: subtitlePx * 1.12,
                                     color: 'rgba(255,255,255,0.8)',
                                     marginTop: 10,
-                                    fontWeight: 500,
+                                    fontWeight: 700,
                                     textShadow: '0 1px 12px rgba(0,0,0,0.3)',
                                 }}
                             >
@@ -951,10 +952,14 @@ function EndFade() {
 }
 
 function TimelineAudio({ p }: { p: ViewterfyProps }) {
-    const { fps } = useVideoConfig()
+    const frame = useCurrentFrame()
+    const { fps, durationInFrames } = useVideoConfig()
     if (!p.audioDataUrl) return null
     const trimBefore = Math.round((p.audioTrimStartSec ?? 0) * fps)
-    return <Audio src={p.audioDataUrl} trimBefore={trimBefore} volume={p.audioVolume ?? 0.5} />
+    const currentSec = frame / fps
+    const totalSec = durationInFrames / fps
+    const fadeGain = getEdgeFadeGain(currentSec, totalSec, AUDIO_EDGE_FADE_SEC)
+    return <Audio src={p.audioDataUrl} trimBefore={trimBefore} volume={(p.audioVolume ?? 0.5) * fadeGain} />
 }
 
 export const ViewterfyComposition: FC<ViewterfyProps> = (p) => {

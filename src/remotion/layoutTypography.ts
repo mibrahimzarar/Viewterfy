@@ -15,10 +15,10 @@ export function sceneHeadingFontPx(viewportWidth: number, aspectRatio: '1:1' | '
 export function sceneSubtitleFontPx(viewportWidth: number, aspectRatio: '1:1' | '9:16', subtitleScale: number): number {
     const vw = viewportWidth / 100
     if (aspectRatio === '1:1') {
-        const v = Math.min(Math.max(10.4, 1.8 * vw), 16)
+        const v = Math.min(Math.max(11.6, 2 * vw), 17.6)
         return v * subtitleScale
     }
-    const v = Math.min(Math.max(11.2, 1.5 * vw), 14.4)
+    const v = Math.min(Math.max(12.3, 1.65 * vw), 15.8)
     return v * subtitleScale
 }
 
