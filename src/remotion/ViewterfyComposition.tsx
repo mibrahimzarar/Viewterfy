@@ -765,7 +765,7 @@ function SceneInner({
                                     fontSize: subtitlePx,
                                     color: 'rgba(255,255,255,0.8)',
                                     marginTop: 10,
-                                    fontWeight: 700,
+                                    fontWeight: 500,
                                     textShadow: '0 1px 12px rgba(0,0,0,0.3)',
                                 }}
                             >

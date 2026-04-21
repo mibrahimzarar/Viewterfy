@@ -1,7 +1,6 @@
 import type { ViewterfyProps } from '../remotion/viewterfyProps'
 import { viewterfyPropsSchema } from '../remotion/viewterfyProps'
 import type { AspectRatio, Scene } from '../store/useStore'
-import { getExportStageDimensions } from './exportStageDimensions'
 import { normalizeSceneScrollForExport } from './normalizeSceneScroll'
 
 async function ensureDataUrl(url: string | null): Promise<string | null> {
@@ -26,6 +25,10 @@ const DEFAULT_FPS = 30
 
 const DEFAULT_VW = 1920
 const DEFAULT_VH = 1080
+const HD_EXPORT = {
+    square: { width: 1080, height: 1080 },
+    vertical: { width: 1080, height: 1920 },
+} as const
 
 /**
  * Build validated Remotion input props from editor state (blob URLs → data URLs for CLI render).
@@ -37,7 +40,7 @@ export async function buildViewterfyRemotionProps(snapshot: PlainSnapshot): Prom
     const fps = DEFAULT_FPS
     const viewportWidth = DEFAULT_VW
     const viewportHeight = DEFAULT_VH
-    const { width, height } = getExportStageDimensions(viewportWidth, viewportHeight, aspectRatio)
+    const { width, height } = aspectRatio === '9:16' ? HD_EXPORT.vertical : HD_EXPORT.square
 
     const scenesRaw = snapshot.scenes as Scene[]
     const scenes: Scene[] = await Promise.all(
