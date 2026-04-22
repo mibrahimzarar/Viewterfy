@@ -2,7 +2,7 @@
  * Durations that drive full-cycle preview in `ControlPanel.tsx` and Remotion — keep in sync.
  * Adjusted for proper transitions matching preview.
  */
-export const PREVIEW_INTRO_MS = 3000
+export const PREVIEW_INTRO_MS = 4000
 export const PREVIEW_OUTRO_MS = 4000
 /** Gap after intro before first scene scroll (setTimeout in ControlPanel). */
 export const PREVIEW_INTRO_TO_FIRST_PLAY_DELAY_MS = 500

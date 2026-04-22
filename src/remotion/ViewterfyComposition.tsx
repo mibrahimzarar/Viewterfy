@@ -35,6 +35,8 @@ const ease = Easing.bezier(0.22, 1, 0.36, 1)
 
 /** Uniform zoom for all Remotion visuals (intro, scenes, bridges, outro, end fade). Preview unchanged. */
 const REMOTION_CONTENT_ZOOM = 1.50
+/** 9:16 exports need stronger phone presence than square. */
+const REMOTION_VERTICAL_PHONE_SCALE_MULTIPLIER = 1.7
 /** Extra zoom applied only to intro content block. */
 const INTRO_CONTENT_ZOOM = 1.14
 /** Extra zoom applied only to outro content block. */
@@ -689,7 +691,9 @@ function SceneInner({
     const verticalStackLift = isVertical ? (isMd ? -72 : -60) : 0
 
     const textMaxW = isVertical ? (isMd ? 0.62 * stageW : 0.64 * stageW) : 290
-    const phoneScale = effectiveMockupScale(p.aspectRatio, hasText, scene.mockupScale)
+    const phoneScale =
+        effectiveMockupScale(p.aspectRatio, hasText, scene.mockupScale) *
+        (isVertical ? REMOTION_VERTICAL_PHONE_SCALE_MULTIPLIER : 1)
 
     const textOrder = isVertical ? 2 : isMd ? 1 : 2
     const phoneOrder = isVertical ? 1 : isMd ? 2 : 1
@@ -728,10 +732,8 @@ function SceneInner({
                             width: isVertical ? '100%' : isMd ? 290 : '100%',
                             ...(isVertical
                                 ? {
-                                      position: 'absolute' as const,
-                                      left: '50%',
-                                      bottom: isMd ? 160 : 132,
-                                      transform: 'translateX(-50%)',
+                                      // Match preview layout: text naturally stacks below phone and is lifted with negative margin.
+                                      marginTop: isMd ? -100 : -72,
                                       paddingLeft: 16,
                                       paddingRight: 16,
                                   }

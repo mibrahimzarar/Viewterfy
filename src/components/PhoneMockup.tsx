@@ -2,6 +2,7 @@ import { motion, useAnimation, useMotionValue } from 'framer-motion'
 import { clsx } from 'clsx'
 import { useStore, type Scene } from '../store/useStore'
 import { useEffect, useRef, useState } from 'react'
+import { PREVIEW_INTRO_MS } from '../remotion/previewTimeline'
 
 const frameColors = {
     black: {
@@ -94,12 +95,12 @@ export const PhoneMockup = ({ scene, sceneId }: PhoneMockupProps) => {
         const pxPerSec = Math.max(10, scrollSpeed * 5)
         const duration = pxPerSec > 0 ? maxScroll / pxPerSec : 0
 
-        // Total Sequence = Intro (3s) + Scroll (duration) + Outro (4s)
+        // Total Sequence = Intro + Scroll (duration) + Outro (4s)
         // We'll just store the Scroll duration here, or the total?
         // Let's store TOTAL to make it easy for AudioPanel.
         // We need to know if Intro/Outro are enabled.
         const state = useStore.getState()
-        const totalDuration = (state.showIntro ? 3 : 0) + duration + 1 + (state.showOutro ? 4 : 0) // +1 for buffers
+        const totalDuration = (state.showIntro ? PREVIEW_INTRO_MS / 1000 : 0) + duration + 1 + (state.showOutro ? 4 : 0) // +1 for buffers
 
         if (Math.abs(totalDuration - state.videoDuration) > 0.1) {
             state.setVideoDuration(totalDuration)

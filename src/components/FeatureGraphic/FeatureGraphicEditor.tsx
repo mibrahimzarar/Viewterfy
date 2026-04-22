@@ -11,6 +11,7 @@ export const FeatureGraphicEditor = () => {
     const {
         headline,
         headlineColor,
+        headlineScale,
         selectedPreset,
     } = store
 
@@ -121,36 +122,38 @@ export const FeatureGraphicEditor = () => {
                         className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden"
                         style={bgStyle}
                     >
-                        {/* Headline */}
-                        <AnimatePresence>
-                            {headline && (
-                                <motion.h1
-                                    initial={{ opacity: 0, y: -20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -20 }}
-                                    className="absolute text-center font-bold z-10 px-8"
-                                    style={{
-                                        top: '8%',
-                                        color: headlineColor,
-                                        fontSize: aspectRatio > 1.5 ? 'clamp(1.5rem, 4vw, 3rem)' : 'clamp(1.2rem, 3vw, 2rem)',
-                                        textShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                                        maxWidth: '90%',
-                                    }}
-                                >
-                                    {headline}
-                                </motion.h1>
-                            )}
-                        </AnimatePresence>
-
-                        {/* Device Mockup */}
                         <div
-                            className="relative z-20"
+                            className="relative z-20 w-full h-full flex flex-col items-center justify-center px-8 py-8"
                             style={{
-                                transform: headline ? 'translateY(8%)' : 'translateY(0)',
-                                transition: 'transform 0.3s ease',
+                                gap: headline ? (aspectRatio > 1.5 ? 'clamp(24px, 4vh, 44px)' : 'clamp(16px, 2.8vh, 30px)') : 0,
                             }}
                         >
-                            <DeviceMockup scale={getDeviceScale()} />
+                            {/* Headline */}
+                            <AnimatePresence>
+                                {headline && (
+                                    <motion.h1
+                                        initial={{ opacity: 0, y: -20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -20 }}
+                                        className="text-center font-bold z-10"
+                                        style={{
+                                            color: headlineColor,
+                                            fontSize: aspectRatio > 1.5
+                                                ? `calc(clamp(1.5rem, 4vw, 3rem) * ${headlineScale})`
+                                                : `calc(clamp(1.2rem, 3vw, 2rem) * ${headlineScale})`,
+                                            textShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                                            maxWidth: '90%',
+                                        }}
+                                    >
+                                        {headline}
+                                    </motion.h1>
+                                )}
+                            </AnimatePresence>
+
+                            {/* Device Mockup */}
+                            <div className="relative">
+                                <DeviceMockup scale={getDeviceScale()} />
+                            </div>
                         </div>
                     </div>
 

@@ -90,9 +90,11 @@ interface FeatureGraphicState {
     headline: string
     headlineColor: string
     headlineSize: 'sm' | 'md' | 'lg' | 'xl'
+    headlineScale: number
     setHeadline: (text: string) => void
     setHeadlineColor: (color: string) => void
     setHeadlineSize: (size: 'sm' | 'md' | 'lg' | 'xl') => void
+    setHeadlineScale: (scale: number) => void
 
     // Export Settings
     selectedPreset: ExportPresetId
@@ -119,6 +121,7 @@ const initialState = {
     headline: '',
     headlineColor: '#ffffff',
     headlineSize: 'lg' as const,
+    headlineScale: 1,
     selectedPreset: 'play-feature' as ExportPresetId,
     isExporting: false,
 }
@@ -145,6 +148,7 @@ export const useFeatureGraphicStore = create<FeatureGraphicState>((set) => ({
     setHeadline: (headline) => set({ headline }),
     setHeadlineColor: (headlineColor) => set({ headlineColor }),
     setHeadlineSize: (headlineSize) => set({ headlineSize }),
+    setHeadlineScale: (headlineScale) => set({ headlineScale }),
 
     // Export Actions
     setSelectedPreset: (selectedPreset) => set({ selectedPreset }),

@@ -30,12 +30,14 @@ export const FeatureGraphicControls = () => {
         deviceScale,
         headline,
         headlineColor,
+        headlineScale,
         setScreenshot,
         setDeviceType,
         setDeviceColor,
         setDeviceScale,
         setHeadline,
         setHeadlineColor,
+        setHeadlineScale,
     } = useFeatureGraphicStore()
 
     // Dropzone for screenshot
@@ -192,6 +194,21 @@ export const FeatureGraphicControls = () => {
                                 value={headlineColor}
                                 onChange={(e) => setHeadlineColor(e.target.value)}
                                 className="flex-1 bg-white/10 border border-white/10 rounded-lg px-2 py-1 text-xs text-white font-mono"
+                            />
+                        </div>
+                        <div className="space-y-2 pt-1">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs text-white/50">Text Size</span>
+                                <span className="text-xs text-white/80 font-mono">{Math.round(headlineScale * 100)}%</span>
+                            </div>
+                            <input
+                                type="range"
+                                min="0.7"
+                                max="1.6"
+                                step="0.05"
+                                value={headlineScale}
+                                onChange={(e) => setHeadlineScale(parseFloat(e.target.value))}
+                                className="w-full h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-violet-500 hover:accent-violet-400 transition-all"
                             />
                         </div>
                     </div>
