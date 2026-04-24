@@ -246,7 +246,7 @@ function IntroInner({ p, exitProgress, settled }: { p: ViewterfyProps; exitProgr
                                 fontSize: subSize,
                                 color: 'rgba(255,255,255,0.8)',
                                 marginTop: 8,
-                                fontWeight: 500,
+                                fontWeight: 600,
                                 paddingLeft: isVertical ? 32 : 0,
                                 paddingRight: isVertical ? 32 : 0,
                             }}
@@ -350,7 +350,7 @@ function IntroInner({ p, exitProgress, settled }: { p: ViewterfyProps; exitProgr
                             fontSize: subSize,
                             color: 'rgba(255,255,255,0.8)',
                             marginTop: 8,
-                            fontWeight: 500,
+                            fontWeight: 600,
                             paddingLeft: isVertical ? 32 : 0,
                             paddingRight: isVertical ? 32 : 0,
                         }}
@@ -440,7 +440,7 @@ function OutroInner({ p, enterScrubT, resumeAfterTransition }: { p: ViewterfyPro
                             fontSize: pSize,
                             color: 'rgba(255,255,255,0.8)',
                             marginTop: 8,
-                            fontWeight: 500,
+                            fontWeight: 600,
                         }}
                     >
                         Available on iOS and Android
@@ -767,7 +767,7 @@ function SceneInner({
                                     fontSize: subtitlePx,
                                     color: 'rgba(255,255,255,0.8)',
                                     marginTop: 10,
-                                    fontWeight: 500,
+                                    fontWeight: 600,
                                     textShadow: '0 1px 12px rgba(0,0,0,0.3)',
                                 }}
                             >

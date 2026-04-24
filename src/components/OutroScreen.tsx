@@ -43,7 +43,7 @@ export const OutroScreen = () => {
                             duration: 0.8,
                             ease: [0.22, 1, 0.36, 1]
                         }}
-                        className={`text-white/80 font-medium drop-shadow-sm ${isVertical ? 'text-sm' : 'text-lg'}`}
+                        className={`text-white/80 font-semibold drop-shadow-sm ${isVertical ? 'text-sm' : 'text-lg'}`}
                     >
                         Available on iOS and Android
                     </motion.p>
