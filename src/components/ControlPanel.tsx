@@ -11,12 +11,12 @@ import {
     PREVIEW_END_FADE_MS,
     PREVIEW_HOLD_MS_BEFORE_SCENE_SWITCH,
     PREVIEW_INTRO_HANDOFF_MS,
-    PREVIEW_INTRO_MS,
     PREVIEW_INTRO_TO_FIRST_PLAY_DELAY_MS,
     PREVIEW_MS_AFTER_RESET_TO_PLAY,
     PREVIEW_MS_AFTER_SWITCH_TO_RESET,
     PREVIEW_OUTRO_ENTRY_DELAY_MS,
     PREVIEW_OUTRO_MS,
+    previewIntroMsByMode,
     previewBetweenScenesMs,
 } from '../remotion/previewTimeline'
 import { GenericBackgroundPicker } from './GenericBackgroundPicker'
@@ -39,12 +39,13 @@ function formatFullCycleDuration(totalSeconds: number): string {
 function estimateFullCycleSeconds(
     scenes: { id: string }[],
     showIntro: boolean,
+    introMode: 'logo' | 'text-hook' | 'text-then-logo',
     showOutro: boolean,
     sceneScrollSecondsById: Record<string, number>,
 ): number {
     let t = 0
     if (showIntro) {
-        t += PREVIEW_INTRO_MS / 1000
+        t += previewIntroMsByMode(introMode) / 1000
         if (scenes.length > 0) t += PREVIEW_INTRO_HANDOFF_MS / 1000
     }
     scenes.forEach((scene, i) => {
@@ -70,7 +71,7 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
         isPlaying, setIsPlaying,
         setBackgroundType, setBackgroundColor, setBackgroundGradient, setBackgroundPattern, setBackgroundImage,
         triggerReset,
-        showIntro, setShowIntro, introLogo, setIntroLogo, introTitle, setIntroTitle, introSubtitle, setIntroSubtitle, introBackground,
+        showIntro, setShowIntro, introMode, setIntroMode, introLogo, setIntroLogo, introHookText, setIntroHookText, introTitle, setIntroTitle, introSubtitle, setIntroSubtitle, introBackground,
         showOutro, setShowOutro, outroQrCode, setOutroQrCode, outroBackground
     } = useStore()
 
@@ -134,8 +135,8 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
     const { animationFinished, setAnimationFinished, isFullCyclePreview, setIsFullCyclePreview, sceneScrollSecondsById } = useStore()
 
     const estimatedFullCycleSeconds = useMemo(
-        () => estimateFullCycleSeconds(scenes, showIntro, showOutro, sceneScrollSecondsById),
-        [scenes, showIntro, showOutro, sceneScrollSecondsById],
+        () => estimateFullCycleSeconds(scenes, showIntro, introMode, showOutro, sceneScrollSecondsById),
+        [scenes, showIntro, introMode, showOutro, sceneScrollSecondsById],
     )
 
     const endFullPreviewAndRestore = useCallback(() => {
@@ -186,7 +187,7 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
 
     useEffect(() => {
         if (!isFullCyclePreview) return
-        if (activeSceneId === 'INTRO') { const t = setTimeout(() => useStore.getState().setAnimationFinished(true), PREVIEW_INTRO_MS); return () => clearTimeout(t) }
+        if (activeSceneId === 'INTRO') { const t = setTimeout(() => useStore.getState().setAnimationFinished(true), previewIntroMsByMode(useStore.getState().introMode)); return () => clearTimeout(t) }
         if (activeSceneId === 'OUTRO') { const t = setTimeout(() => useStore.getState().setAnimationFinished(true), PREVIEW_OUTRO_MS); return () => clearTimeout(t) }
     }, [isFullCyclePreview, activeSceneId])
 
@@ -301,17 +302,69 @@ export const ControlPanel = ({ onClose: _onClose }: ControlPanelProps) => {
                         </div>
                         {showIntro && (
                             <div className="space-y-3 pt-2 border-t border-white/5">
-                                <div className="flex gap-3">
-                                    <div className="w-14 h-14 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
-                                        {introLogo ? <img src={introLogo} className="w-full h-full object-cover" /> : <Upload size={16} className="text-white/20" />}
-                                    </div>
-                                    <div className="flex-1 flex items-center">
-                                        <input type="file" accept="image/*" id="intro-logo" className="hidden" onChange={(e) => { if (e.target.files?.[0]) setIntroLogo(URL.createObjectURL(e.target.files[0])) }} />
-                                        <label htmlFor="intro-logo" className="text-xs bg-white/10 hover:bg-white/15 px-3 py-2 rounded-lg cursor-pointer transition-colors">Upload Logo</label>
-                                    </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIntroMode('logo')}
+                                        className={clsx(
+                                            'flex-1 rounded-lg px-3 py-2 text-xs font-medium transition-all',
+                                            introMode === 'logo'
+                                                ? 'bg-white text-black shadow'
+                                                : 'bg-white/5 text-white/65 hover:bg-white/10'
+                                        )}
+                                    >
+                                        Logo Intro
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIntroMode('text-hook')}
+                                        className={clsx(
+                                            'flex-1 rounded-lg px-3 py-2 text-xs font-medium transition-all',
+                                            introMode === 'text-hook'
+                                                ? 'bg-white text-black shadow'
+                                                : 'bg-white/5 text-white/65 hover:bg-white/10'
+                                        )}
+                                    >
+                                        Text Hook
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIntroMode('text-then-logo')}
+                                        className={clsx(
+                                            'flex-1 rounded-lg px-3 py-2 text-xs font-medium transition-all',
+                                            introMode === 'text-then-logo'
+                                                ? 'bg-white text-black shadow'
+                                                : 'bg-white/5 text-white/65 hover:bg-white/10'
+                                        )}
+                                    >
+                                        Hook + Logo
+                                    </button>
                                 </div>
-                                <input value={introTitle} onChange={(e) => setIntroTitle(e.target.value)} placeholder="App Name" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm placeholder:text-white/30 focus:border-primary focus:outline-none" />
-                                <input value={introSubtitle} onChange={(e) => setIntroSubtitle(e.target.value)} placeholder="Tagline" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm placeholder:text-white/30 focus:border-primary focus:outline-none" />
+                                {introMode !== 'text-hook' ? (
+                                    <div className="flex gap-3">
+                                        <div className="w-14 h-14 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                            {introLogo ? <img src={introLogo} className="w-full h-full object-cover" /> : <Upload size={16} className="text-white/20" />}
+                                        </div>
+                                        <div className="flex-1 flex items-center">
+                                            <input type="file" accept="image/*" id="intro-logo" className="hidden" onChange={(e) => { if (e.target.files?.[0]) setIntroLogo(URL.createObjectURL(e.target.files[0])) }} />
+                                            <label htmlFor="intro-logo" className="text-xs bg-white/10 hover:bg-white/15 px-3 py-2 rounded-lg cursor-pointer transition-colors">Upload Logo</label>
+                                        </div>
+                                    </div>
+                                ) : null}
+                                {introMode !== 'logo' ? (
+                                    <input
+                                        value={introHookText}
+                                        onChange={(e) => setIntroHookText(e.target.value)}
+                                        placeholder="Hook text (typed on intro)"
+                                        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm placeholder:text-white/30 focus:border-primary focus:outline-none"
+                                    />
+                                ) : null}
+                                {introMode !== 'text-hook' ? (
+                                    <>
+                                        <input value={introTitle} onChange={(e) => setIntroTitle(e.target.value)} placeholder="App Name" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm placeholder:text-white/30 focus:border-primary focus:outline-none" />
+                                        <input value={introSubtitle} onChange={(e) => setIntroSubtitle(e.target.value)} placeholder="Tagline" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm placeholder:text-white/30 focus:border-primary focus:outline-none" />
+                                    </>
+                                ) : null}
                             </div>
                         )}
                     </div>

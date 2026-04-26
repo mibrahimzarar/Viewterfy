@@ -22,10 +22,10 @@ export const PRESET_GRADIENTS = [
     // Removed: Ocean, Aurora, Fire
     { id: 'midnight', name: 'Midnight', value: 'linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)' },
     // Removed: Emerald
-    { id: 'rose', name: 'Rose Gold', value: 'linear-gradient(135deg, #ee9ca7 0%, #ffdde1 100%)' },
+    { id: 'rose', name: 'Blush Onyx', value: 'linear-gradient(148deg, #0c090a 0%, #241a1f 34%, #4a3a42 62%, #7d6a72 88%, #c9bcc0 100%)' },
     { id: 'cosmic', name: 'Cosmic', value: 'linear-gradient(135deg, #8E2DE2 0%, #4A00E0 100%)' },
-    { id: 'peach', name: 'Peach', value: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)' },
-    { id: 'electric', name: 'Electric', value: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)' },
+    { id: 'peach', name: 'Parchment Noir', value: 'linear-gradient(145deg, #0f0e0c 0%, #252019 38%, #433a30 64%, #6f6458 86%, #b5a89a 100%)' },
+    { id: 'electric', name: 'Mercury Slate', value: 'linear-gradient(150deg, #060809 0%, #12181f 32%, #243040 58%, #3d4f5f 82%, #8a9aaa 100%)' },
     { id: 'nord', name: 'Nordic', value: 'linear-gradient(135deg, #2C3E50 0%, #4CA1AF 100%)' },
     { id: 'lavender', name: 'Lavender', value: 'linear-gradient(135deg, #E8CBC0 0%, #636FA4 100%)' },
 ]

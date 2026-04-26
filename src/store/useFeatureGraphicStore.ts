@@ -22,15 +22,13 @@ export const PRESET_GRADIENTS = [
     // Removed: Ocean, Aurora, Fire
     { id: 'midnight', name: 'Midnight', value: 'linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)' },
     // Removed: Emerald
-    { id: 'rose', name: 'Rose Gold', value: 'linear-gradient(135deg, #ee9ca7 0%, #ffdde1 100%)' },
-    { id: 'cosmic', name: 'Cosmic', value: 'linear-gradient(135deg, #8E2DE2 0%, #4A00E0 100%)' },
-    { id: 'peach', name: 'Peach', value: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)' },
-    { id: 'electric', name: 'Electric', value: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)' },
+    { id: 'rose', name: 'Blush Onyx', value: 'linear-gradient(148deg, #0c090a 0%, #241a1f 34%, #4a3a42 62%, #7d6a72 88%, #c9bcc0 100%)' },
+    { id: 'peach', name: 'Parchment Noir', value: 'linear-gradient(145deg, #0f0e0c 0%, #252019 38%, #433a30 64%, #6f6458 86%, #b5a89a 100%)' },
+    { id: 'electric', name: 'Mercury Slate', value: 'linear-gradient(150deg, #060809 0%, #12181f 32%, #243040 58%, #3d4f5f 82%, #8a9aaa 100%)' },
     { id: 'nord', name: 'Nordic', value: 'linear-gradient(135deg, #2C3E50 0%, #4CA1AF 100%)' },
     { id: 'lavender', name: 'Lavender', value: 'linear-gradient(135deg, #E8CBC0 0%, #636FA4 100%)' },
     // Luxury / Refined Collection
     { id: 'obsidian', name: 'Obsidian Silk', value: 'linear-gradient(145deg, #0b0f14 0%, #1b2430 38%, #05070a 100%)' },
-    { id: 'champagne', name: 'Champagne Mist', value: 'linear-gradient(145deg, #f5eadf 0%, #dcc6a8 42%, #8e7556 100%)' },
     { id: 'royal-noir', name: 'Royal Noir', value: 'linear-gradient(145deg, #0f1020 0%, #2a1f45 42%, #06070d 100%)' },
     { id: 'emerald-velour', name: 'Emerald Velour', value: 'linear-gradient(145deg, #081c15 0%, #1b4332 40%, #0b0f10 100%)' },
     { id: 'pearl-night', name: 'Pearl Night', value: 'linear-gradient(145deg, #edf2f4 0%, #8d99ae 35%, #1d3557 100%)' },
@@ -38,7 +36,6 @@ export const PRESET_GRADIENTS = [
     { id: 'sapphire-veil', name: 'Sapphire Veil', value: 'linear-gradient(145deg, #061a40 0%, #1b4965 42%, #cae9ff 100%)' },
     { id: 'amethyst-smoke', name: 'Amethyst Smoke', value: 'linear-gradient(145deg, #1b1028 0%, #5b4b8a 40%, #d6c6f5 100%)' },
     { id: 'auric-dusk', name: 'Auric Dusk', value: 'linear-gradient(145deg, #111827 0%, #6b5b2a 46%, #f7e7a1 100%)' },
-    { id: 'moonstone', name: 'Moonstone', value: 'linear-gradient(145deg, #dfe7ef 0%, #94a3b8 36%, #334155 100%)' },
     { id: 'velour-rose', name: 'Velour Rose', value: 'linear-gradient(145deg, #2a1118 0%, #8f4b62 40%, #f3d4dd 100%)' },
     { id: 'deep-lagoon', name: 'Deep Lagoon', value: 'linear-gradient(145deg, #031926 0%, #0a4f5c 42%, #9ee7d8 100%)' },
 ]

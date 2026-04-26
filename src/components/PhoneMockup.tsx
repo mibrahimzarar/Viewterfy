@@ -2,7 +2,7 @@ import { motion, useAnimation, useMotionValue } from 'framer-motion'
 import { clsx } from 'clsx'
 import { useStore, type Scene } from '../store/useStore'
 import { useEffect, useRef, useState } from 'react'
-import { PREVIEW_INTRO_MS } from '../remotion/previewTimeline'
+import { previewIntroMsByMode } from '../remotion/previewTimeline'
 
 const frameColors = {
     black: {
@@ -45,7 +45,7 @@ interface PhoneMockupProps {
 }
 
 export const PhoneMockup = ({ scene, sceneId }: PhoneMockupProps) => {
-    const { isPlaying, aspectRatio, isExporting, isFullCyclePreview, setAnimationFinished, resetScrollSignal } = useStore()
+    const { isPlaying, aspectRatio, isExporting, isFullCyclePreview, setAnimationFinished, resetScrollSignal, introMode } = useStore()
     const advanceAfterScroll = isExporting || isFullCyclePreview
     const { screenshots, phoneColor, scrollSpeed } = scene
     const frame = frameColors[phoneColor]
@@ -100,12 +100,13 @@ export const PhoneMockup = ({ scene, sceneId }: PhoneMockupProps) => {
         // Let's store TOTAL to make it easy for AudioPanel.
         // We need to know if Intro/Outro are enabled.
         const state = useStore.getState()
-        const totalDuration = (state.showIntro ? PREVIEW_INTRO_MS / 1000 : 0) + duration + 1 + (state.showOutro ? 4 : 0) // +1 for buffers
+        const introSec = state.showIntro ? previewIntroMsByMode(state.introMode) / 1000 : 0
+        const totalDuration = introSec + duration + 1 + (state.showOutro ? 4 : 0) // +1 for buffers
 
         if (Math.abs(totalDuration - state.videoDuration) > 0.1) {
             state.setVideoDuration(totalDuration)
         }
-    }, [maxScroll, scrollSpeed, sceneId, useStore.getState().showIntro, useStore.getState().showOutro])
+    }, [maxScroll, scrollSpeed, sceneId, useStore.getState().showIntro, useStore.getState().showOutro, introMode])
 
     // Per-scene timing for full-cycle duration (scroll + post-scroll hold, matches export pacing).
     useEffect(() => {

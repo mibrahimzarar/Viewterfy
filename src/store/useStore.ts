@@ -4,6 +4,7 @@ import { PRESET_GRADIENTS } from './useFeatureGraphicStore'
 export type PhoneColor = 'black' | 'silver' | 'gold' | 'blue'
 export type AspectRatio = '1:1' | '9:16'
 export type TextAnimation = 'fade' | 'slide' | 'none'
+export type IntroMode = 'logo' | 'text-hook' | 'text-then-logo'
 
 // Scene Definition
 export interface Scene {
@@ -96,12 +97,16 @@ interface AppState {
 
     // Intro Settings
     showIntro: boolean
+    introMode: IntroMode
     introLogo: string | null
+    introHookText: string
     introTitle: string
     introSubtitle: string
     introBackground: BackgroundSettings
     setShowIntro: (show: boolean) => void
+    setIntroMode: (mode: IntroMode) => void
     setIntroLogo: (logo: string | null) => void
+    setIntroHookText: (text: string) => void
     setIntroTitle: (text: string) => void
     setIntroSubtitle: (text: string) => void
 
@@ -145,7 +150,9 @@ export const useStore = create<AppState>((set) => ({
 
     // Intro Settings Initial State
     showIntro: false,
+    introMode: 'logo',
     introLogo: null,
+    introHookText: 'Transform your daily habits in 30 seconds.',
     introTitle: "Welcome",
     introSubtitle: "Discover the amazing features",
     introBackground: {
@@ -373,7 +380,9 @@ export const useStore = create<AppState>((set) => ({
 
     // Intro Actions
     setShowIntro: (show) => set({ showIntro: show }),
+    setIntroMode: (mode) => set({ introMode: mode }),
     setIntroLogo: (logo) => set({ introLogo: logo }),
+    setIntroHookText: (text) => set({ introHookText: text }),
     setIntroTitle: (text) => set({ introTitle: text }),
     setIntroSubtitle: (text) => set({ introSubtitle: text }),
 

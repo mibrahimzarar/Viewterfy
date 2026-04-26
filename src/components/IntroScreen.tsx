@@ -1,10 +1,79 @@
 import { motion } from 'framer-motion'
+import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '../store/useStore'
+import {
+    PREVIEW_INTRO_HOOK_END_HOLD_MS,
+    PREVIEW_INTRO_HOOK_MS,
+    PREVIEW_INTRO_LOGO_SHORT_MS,
+} from '../remotion/previewTimeline'
 
 export const IntroScreen = () => {
-    const { introLogo, introTitle, introSubtitle, aspectRatio } = useStore()
+    const { introMode, introLogo, introHookText, introTitle, introSubtitle, aspectRatio } = useStore()
 
     const isVertical = aspectRatio === '9:16'
+    const [typedChars, setTypedChars] = useState(0)
+    const [elapsedMs, setElapsedMs] = useState(0)
+    const hookText = useMemo(
+        () => (introHookText.trim().length > 0 ? introHookText.trim() : 'Transform your daily habits in 30 seconds.'),
+        [introHookText],
+    )
+    const hookThenLogo = introMode === 'text-then-logo'
+    const HOOK_PHASE_MS = PREVIEW_INTRO_HOOK_MS
+    const HOOK_END_HOLD_MS = PREVIEW_INTRO_HOOK_END_HOLD_MS
+    const TOTAL_THEN_LOGO_MS = HOOK_PHASE_MS + HOOK_END_HOLD_MS + PREVIEW_INTRO_LOGO_SHORT_MS
+
+    useEffect(() => {
+        if (introMode !== 'text-hook' && introMode !== 'text-then-logo') return
+        setTypedChars(0)
+        const totalChars = hookText.length
+        const typingWindow = introMode === 'text-then-logo' ? Math.round(HOOK_PHASE_MS * 1.2) : 2300
+        const tickMs = Math.max(18, Math.round(typingWindow / Math.max(1, totalChars)))
+        const id = window.setInterval(() => {
+            setTypedChars((prev) => {
+                if (prev >= totalChars) {
+                    window.clearInterval(id)
+                    return prev
+                }
+                return prev + 1
+            })
+        }, tickMs)
+        return () => window.clearInterval(id)
+    }, [introMode, hookText])
+
+    useEffect(() => {
+        if (!hookThenLogo) return
+        setElapsedMs(0)
+        const start = performance.now()
+        const id = window.setInterval(() => {
+            const ms = performance.now() - start
+            setElapsedMs(ms)
+            if (ms >= TOTAL_THEN_LOGO_MS) {
+                window.clearInterval(id)
+            }
+        }, 33)
+        return () => window.clearInterval(id)
+    }, [hookThenLogo, hookText])
+
+    if (introMode === 'text-hook' || (hookThenLogo && elapsedMs < HOOK_PHASE_MS + HOOK_END_HOLD_MS)) {
+        const visible = hookText.slice(0, typedChars)
+        const showCursor = typedChars < hookText.length
+        return (
+            <div className="w-full h-full min-w-0 flex items-center justify-center p-8 text-center relative overflow-hidden">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_rgba(0,0,0,0.38)_100%)] pointer-events-none" />
+                <motion.div
+                    initial={{ opacity: 0, y: 20, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                    className={`${isVertical ? 'max-w-[78%]' : 'max-w-[70%]'} z-10 w-full min-w-0`}
+                >
+                    <p className={`${isVertical ? 'text-[2rem] leading-[1.28]' : 'text-4xl md:text-5xl leading-[1.22]'} font-bold tracking-tight text-white break-words drop-shadow-[0_6px_26px_rgba(0,0,0,0.45)]`}>
+                        {visible}
+                        {showCursor ? <span className="inline-block animate-pulse text-white/85 ml-1">|</span> : null}
+                    </p>
+                </motion.div>
+            </div>
+        )
+    }
 
     return (
         <div

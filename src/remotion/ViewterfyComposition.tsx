@@ -5,10 +5,13 @@ import {
     msToFrames,
     PREVIEW_END_FADE_MS,
     PREVIEW_HOLD_MS_BEFORE_SCENE_SWITCH,
+    PREVIEW_INTRO_HOOK_END_HOLD_MS,
+    PREVIEW_INTRO_HOOK_MS,
     PREVIEW_INTRO_HANDOFF_MS,
-    PREVIEW_INTRO_MS,
+    PREVIEW_INTRO_LOGO_SHORT_MS,
     PREVIEW_OUTRO_ENTRY_DELAY_MS,
     PREVIEW_OUTRO_MS,
+    previewIntroMsByMode,
     previewBetweenScenesMs,
 } from './previewTimeline'
 import {
@@ -35,10 +38,14 @@ const ease = Easing.bezier(0.22, 1, 0.36, 1)
 
 /** Uniform zoom for all Remotion visuals (intro, scenes, bridges, outro, end fade). Preview unchanged. */
 const REMOTION_CONTENT_ZOOM = 1.50
-/** 9:16 exports need stronger phone presence than square. */
-const REMOTION_VERTICAL_PHONE_SCALE_MULTIPLIER = 1.7
+/** Extra whole-frame zoom for 9:16 exports. */
+const REMOTION_VERTICAL_CONTENT_ZOOM = 1.9
+/** Whole-frame nudge down (px) for 9:16 only — centers stacked content after vertical zoom. */
+const REMOTION_VERTICAL_FRAME_OFFSET_Y = 32
+/** Bring 9:16 scene zoom closer to square framing without affecting square. */
+const REMOTION_VERTICAL_PHONE_SCALE_MULTIPLIER = 1.45
 /** Extra zoom applied only to intro content block. */
-const INTRO_CONTENT_ZOOM = 1.14
+const INTRO_CONTENT_ZOOM = 1.28
 /** Extra zoom applied only to outro content block. */
 const OUTRO_CONTENT_ZOOM = 1.18
 
@@ -140,29 +147,141 @@ function IntroInner({ p, exitProgress, settled }: { p: ViewterfyProps; exitProgr
     const isVertical = p.aspectRatio === '9:16'
     const isMd = p.viewportWidth >= 768
 
-    /** End state of intro segment (~2.85s at 30fps ≈ end of 3s intro clip). */
-    const introSettleFrame = Math.max(0, Math.round(fps * 2.85))
+    const hookText = (p.introHookText ?? '').trim().length > 0 ? p.introHookText.trim() : 'Transform your daily habits in 30 seconds.'
+    const hookThenLogo = p.introMode === 'text-then-logo'
+    const hookPhaseFrames = Math.max(1, msToFrames(PREVIEW_INTRO_HOOK_MS, fps))
+    const hookEndHoldFrames = Math.max(1, msToFrames(PREVIEW_INTRO_HOOK_END_HOLD_MS, fps))
+    const hookTotalFrames = hookPhaseFrames + hookEndHoldFrames
+    const hookBlendFrames = Math.max(1, msToFrames(350, fps))
+    /** End state used when intro is held/frozen during handoff. */
+    const introSettleFrame = hookThenLogo
+        ? Math.max(0, hookTotalFrames + Math.round(msToFrames(PREVIEW_INTRO_LOGO_SHORT_MS, fps) * 0.85))
+        : Math.max(0, msToFrames(previewIntroMsByMode(p.introMode), fps) - 1)
     const animFrame = settled ? introSettleFrame : frame
+    const logoAnimFrame = hookThenLogo ? Math.max(0, animFrame - hookTotalFrames) : animFrame
 
-    const mainOpacity = interpolate(animFrame, [0, fps * 0.8], [0, 1], { easing: ease, extrapolateRight: 'clamp' })
-    const mainScale = interpolate(animFrame, [0, fps * 1.1], [0.92, 1], { easing: ease, extrapolateRight: 'clamp' })
-    const mainY = interpolate(animFrame, [0, fps * 1.0], [30, 0], { easing: ease, extrapolateRight: 'clamp' })
+    const mainOpacity = interpolate(logoAnimFrame, [0, fps * 0.8], [0, 1], { easing: ease, extrapolateRight: 'clamp' })
+    const mainScale = interpolate(logoAnimFrame, [0, fps * 1.1], [0.92, 1], { easing: ease, extrapolateRight: 'clamp' })
+    const mainY = interpolate(logoAnimFrame, [0, fps * 1.0], [30, 0], { easing: ease, extrapolateRight: 'clamp' })
 
-    const logoOpacity = interpolate(animFrame, [fps * 0.3, fps * 1.0], [0, 1], { easing: ease, extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
-    const logoBlur = interpolate(animFrame, [fps * 0.3, fps * 0.85], [10, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
-    const logoScale = interpolate(animFrame, [fps * 0.3, fps * 1.0], [0.8, 1], { easing: ease, extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+    const logoOpacity = interpolate(logoAnimFrame, [fps * 0.3, fps * 1.0], [0, 1], { easing: ease, extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+    const logoBlur = interpolate(logoAnimFrame, [fps * 0.3, fps * 0.85], [10, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+    const logoScale = interpolate(logoAnimFrame, [fps * 0.3, fps * 1.0], [0.8, 1], { easing: ease, extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
 
-    const titleOpacity = interpolate(animFrame, [fps * 0.6, fps * 1.4], [0, 1], { easing: ease, extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
-    const titleY = interpolate(animFrame, [fps * 0.6, fps * 1.4], [30, 0], { easing: ease, extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
-    const titleBlur = interpolate(animFrame, [fps * 0.6, fps * 1.2], [8, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+    const titleOpacity = interpolate(logoAnimFrame, [fps * 0.6, fps * 1.4], [0, 1], { easing: ease, extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+    const titleY = interpolate(logoAnimFrame, [fps * 0.6, fps * 1.4], [30, 0], { easing: ease, extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+    const titleBlur = interpolate(logoAnimFrame, [fps * 0.6, fps * 1.2], [8, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
 
-    const subOpacity = interpolate(animFrame, [fps * 0.9, fps * 1.7], [0, 1], { easing: ease, extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
-    const subY = interpolate(animFrame, [fps * 0.9, fps * 1.7], [20, 0], { easing: ease, extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
-    const subBlur = interpolate(animFrame, [fps * 0.9, fps * 1.5], [4, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+    const subOpacity = interpolate(logoAnimFrame, [fps * 0.9, fps * 1.7], [0, 1], { easing: ease, extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+    const subY = interpolate(logoAnimFrame, [fps * 0.9, fps * 1.7], [20, 0], { easing: ease, extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+    const subBlur = interpolate(logoAnimFrame, [fps * 0.9, fps * 1.5], [4, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
 
-    const logoBox = isVertical ? 128 : isMd ? 144 : 112
-    const titleSize = isVertical ? 30 : isMd ? 48 : 36
-    const subSize = isVertical ? 12 : isMd ? 18 : 16
+    const logoBox = isVertical ? 148 : isMd ? 144 : 112
+    const titleSize = isVertical ? 36 : isMd ? 48 : 36
+    const subSize = isVertical ? 14 : isMd ? 18 : 16
+    const hookTypingFrame = hookThenLogo ? Math.min(animFrame, hookTotalFrames) : animFrame
+    const hookTypedChars = Math.max(1, Math.round(interpolate(hookTypingFrame, [0, Math.round(fps * 1.8)], [0, hookText.length], { extrapolateRight: 'clamp', easing: ease })))
+    const hookVisible = hookText.slice(0, hookTypedChars)
+    const hookShowCursor = hookTypedChars < hookText.length
+    const hookOpacity = interpolate(animFrame, [0, fps * 0.8], [0, 1], { easing: ease, extrapolateRight: 'clamp' })
+    const hookFadeOut = hookThenLogo
+        ? interpolate(animFrame, [Math.max(0, hookTotalFrames - hookBlendFrames), hookTotalFrames], [1, 0], {
+              extrapolateLeft: 'clamp',
+              extrapolateRight: 'clamp',
+              easing: ease,
+          })
+        : 1
+
+    if (p.introMode === 'text-hook' || (hookThenLogo && animFrame < hookTotalFrames)) {
+        if (typeof exitProgress === 'number') {
+            const ex = introExitStyle(exitProgress)
+            return (
+                <AbsoluteFill style={{ ...getBackgroundStyle(p.introBackground), overflow: 'hidden' }}>
+                    <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.38) 100%)', pointerEvents: 'none' }} />
+                    <div
+                        style={{
+                            width: '100%',
+                            height: '100%',
+                            minWidth: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: isVertical ? 44 : 56,
+                            textAlign: 'center',
+                            opacity: ex.opacity,
+                            transform: `scale(${ex.scale * INTRO_CONTENT_ZOOM})`,
+                            filter: `blur(${ex.blur}px)`,
+                        }}
+                    >
+                        <p
+                            style={{
+                                fontSize: isVertical ? 36 : isMd ? 42 : 34,
+                                lineHeight: isVertical ? 1.26 : 1.22,
+                                fontWeight: 800,
+                                letterSpacing: '-0.02em',
+                                maxWidth: isVertical ? '56%' : '62%',
+                                width: isVertical ? '56%' : undefined,
+                                minWidth: 0,
+                                boxSizing: 'border-box',
+                                overflowWrap: 'break-word',
+                                wordBreak: 'break-word',
+                                paddingLeft: isVertical ? 12 : 18,
+                                paddingRight: isVertical ? 12 : 18,
+                                margin: 0,
+                                color: '#fff',
+                                textShadow: '0 10px 30px rgba(0,0,0,0.45)',
+                            }}
+                        >
+                            {hookText}
+                        </p>
+                    </div>
+                </AbsoluteFill>
+            )
+        }
+
+        return (
+            <AbsoluteFill style={{ ...getBackgroundStyle(p.introBackground), overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.38) 100%)', pointerEvents: 'none' }} />
+                <div
+                    style={{
+                        width: '100%',
+                        height: '100%',
+                        minWidth: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: isVertical ? 44 : 56,
+                        textAlign: 'center',
+                        opacity: hookOpacity * hookFadeOut,
+                        transform: `translateY(${mainY}px) scale(${mainScale * INTRO_CONTENT_ZOOM})`,
+                    }}
+                >
+                    <p
+                        style={{
+                            fontSize: isVertical ? 36 : isMd ? 42 : 34,
+                            lineHeight: isVertical ? 1.26 : 1.22,
+                            fontWeight: 800,
+                            letterSpacing: '-0.02em',
+                            maxWidth: isVertical ? '56%' : '62%',
+                            width: isVertical ? '56%' : undefined,
+                            minWidth: 0,
+                            boxSizing: 'border-box',
+                            overflowWrap: 'break-word',
+                            wordBreak: 'break-word',
+                            paddingLeft: isVertical ? 12 : 18,
+                            paddingRight: isVertical ? 12 : 18,
+                            margin: 0,
+                            color: '#fff',
+                            textShadow: '0 10px 30px rgba(0,0,0,0.45)',
+                        }}
+                    >
+                        {hookVisible}
+                        {hookShowCursor ? <span style={{ opacity: 0.85, marginLeft: 6 }}>|</span> : null}
+                    </p>
+                </div>
+            </AbsoluteFill>
+        )
+    }
 
     if (typeof exitProgress === 'number') {
         const ex = introExitStyle(exitProgress)
@@ -391,8 +510,8 @@ function OutroInner({ p, enterScrubT, resumeAfterTransition }: { p: ViewterfyPro
     const qrOpacity = interpolate(f, [fps * 0.2, fps * 0.7], [0, 1], { easing: ease, extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
     const qrScale = interpolate(f, [fps * 0.2, fps * 0.7], [0.9, 1], { easing: ease, extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
 
-    const h2Size = isVertical ? 24 : isMd ? 36 : 30
-    const pSize = isVertical ? 14 : 18
+    const h2Size = isVertical ? 30 : isMd ? 36 : 30
+    const pSize = isVertical ? 16 : 18
     const qr = isVertical ? 192 : isSquare ? 160 : isMd ? 224 : 192
     const badgeH = isSquare ? 40 : isMd ? 56 : 40
 
@@ -486,9 +605,9 @@ function OutroInner({ p, enterScrubT, resumeAfterTransition }: { p: ViewterfyPro
                     <div
                         style={{
                             display: 'flex',
-                            flexDirection: isSquare ? 'column' : 'column',
+                            flexDirection: 'row',
                             gap: isVertical ? 8 : 12,
-                            transform: isVertical ? 'scale(0.9)' : undefined,
+                            transform: undefined,
                             alignItems: 'center',
                         }}
                     >
@@ -688,9 +807,11 @@ function SceneInner({
     const padH = isVertical ? (isMd ? 16 : 12) : isMd ? 48 : 16
     const padV = isVertical ? 32 : isMd ? 32 : 12
     const gap = isVertical ? (hasText ? (isMd ? 16 : 12) : 0) : isMd ? 24 : 16
-    const verticalStackLift = isVertical ? (isMd ? -72 : -60) : 0
+    const verticalStackLift = isVertical ? (isMd ? -38 : -29) : 0
 
-    const textMaxW = isVertical ? (isMd ? 0.62 * stageW : 0.64 * stageW) : 290
+    const textMaxW = isVertical ? (isMd ? 0.56 * stageW : 0.58 * stageW) : 290
+    const headingFontSize = isVertical ? headingPx * 1.16 : headingPx
+    const subtitleFontSize = isVertical ? subtitlePx * 1.24 : subtitlePx
     const phoneScale =
         effectiveMockupScale(p.aspectRatio, hasText, scene.mockupScale) *
         (isVertical ? REMOTION_VERTICAL_PHONE_SCALE_MULTIPLIER : 1)
@@ -729,13 +850,13 @@ function SceneInner({
                             flexDirection: 'column',
                             justifyContent: 'center',
                             alignItems: isVertical ? 'center' : isMd ? 'flex-start' : 'center',
-                            width: isVertical ? '100%' : isMd ? 290 : '100%',
+                            width: isVertical ? '86%' : isMd ? 290 : '100%',
                             ...(isVertical
                                 ? {
-                                      // Match preview layout: text naturally stacks below phone and is lifted with negative margin.
-                                      marginTop: isMd ? -100 : -72,
-                                      paddingLeft: 16,
-                                      paddingRight: 16,
+                                      // Nudge headline/subtitle slightly lower under the mockup (9:16 Remotion only).
+                                      marginTop: isMd ? 38 : 31,
+                                      paddingLeft: 18,
+                                      paddingRight: 18,
                                   }
                                 : null),
                         }}
@@ -746,7 +867,7 @@ function SceneInner({
                                     opacity: s.headOpacity,
                                     transform: `translateY(${s.headY}px)`,
                                     filter: `blur(${s.headBlur}px)`,
-                                    fontSize: headingPx,
+                                    fontSize: headingFontSize,
                                     fontWeight: 800,
                                     color: '#fff',
                                     margin: 0,
@@ -764,10 +885,12 @@ function SceneInner({
                                     opacity: s.subOpacity,
                                     transform: `translateY(${s.subY}px)`,
                                     filter: `blur(${s.subBlur}px)`,
-                                    fontSize: subtitlePx,
+                                    fontSize: subtitleFontSize,
                                     color: 'rgba(255,255,255,0.8)',
                                     marginTop: 10,
                                     fontWeight: 600,
+                                    paddingLeft: isVertical ? 34 : 0,
+                                    paddingRight: isVertical ? 34 : 0,
                                     textShadow: '0 1px 12px rgba(0,0,0,0.3)',
                                 }}
                             >
@@ -779,7 +902,7 @@ function SceneInner({
                 <div
                     style={{
                         order: phoneOrder,
-                        flex: isVertical ? 1 : undefined,
+                        flex: isVertical ? '0 0 auto' : undefined,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -966,12 +1089,13 @@ function TimelineAudio({ p }: { p: ViewterfyProps }) {
 
 export const ViewterfyComposition: FC<ViewterfyProps> = (p) => {
     const { fps } = useVideoConfig()
-    const introF = msToFrames(PREVIEW_INTRO_MS, fps)
+    const introF = msToFrames(previewIntroMsByMode(p.introMode), fps)
     const handoffF = msToFrames(PREVIEW_INTRO_HANDOFF_MS, fps)
     const betweenF = msToFrames(previewBetweenScenesMs(), fps)
     const outroEntryF = msToFrames(PREVIEW_OUTRO_ENTRY_DELAY_MS, fps)
     const outroF = msToFrames(PREVIEW_OUTRO_MS, fps)
     const endFadeF = msToFrames(PREVIEW_END_FADE_MS, fps)
+    const contentZoom = p.aspectRatio === '9:16' ? REMOTION_VERTICAL_CONTENT_ZOOM : REMOTION_CONTENT_ZOOM
 
     const sceneBlocks = p.scenes.flatMap((scene, i) => {
         const { scrollFrames } = scrollGeometry(scene, p, fps)
@@ -995,40 +1119,50 @@ export const ViewterfyComposition: FC<ViewterfyProps> = (p) => {
 
     const lastScene = p.scenes[p.scenes.length - 1]
 
+    const verticalFrameOffsetY = p.aspectRatio === '9:16' ? REMOTION_VERTICAL_FRAME_OFFSET_Y : 0
+
     return (
         <AbsoluteFill style={{ background: '#000', overflow: 'hidden' }}>
             <AbsoluteFill
-                style={{
-                    transform: `scale(${REMOTION_CONTENT_ZOOM})`,
-                    transformOrigin: 'center center',
-                }}
+                style={
+                    verticalFrameOffsetY !== 0
+                        ? { transform: `translateY(${verticalFrameOffsetY}px)` }
+                        : undefined
+                }
             >
-                <Series>
-                    {p.showIntro ? (
-                        <Series.Sequence durationInFrames={introF}>
-                            <IntroInner p={p} />
+                <AbsoluteFill
+                    style={{
+                        transform: `scale(${contentZoom})`,
+                        transformOrigin: 'center center',
+                    }}
+                >
+                    <Series>
+                        {p.showIntro ? (
+                            <Series.Sequence durationInFrames={introF}>
+                                <IntroInner p={p} />
+                            </Series.Sequence>
+                        ) : null}
+                        {p.showIntro && p.scenes.length > 0 ? (
+                            <Series.Sequence durationInFrames={handoffF}>
+                                <IntroFirstSceneHandoff p={p} />
+                            </Series.Sequence>
+                        ) : null}
+                        {sceneBlocks}
+                        {p.showOutro && p.scenes.length > 0 ? (
+                            <Series.Sequence durationInFrames={outroEntryF}>
+                                <OutroEntryBridge p={p} lastScene={lastScene} />
+                            </Series.Sequence>
+                        ) : null}
+                        {p.showOutro ? (
+                            <Series.Sequence durationInFrames={outroF}>
+                                <OutroInner p={p} resumeAfterTransition={p.scenes.length > 0} />
+                            </Series.Sequence>
+                        ) : null}
+                        <Series.Sequence durationInFrames={endFadeF}>
+                            <EndFade />
                         </Series.Sequence>
-                    ) : null}
-                    {p.showIntro && p.scenes.length > 0 ? (
-                        <Series.Sequence durationInFrames={handoffF}>
-                            <IntroFirstSceneHandoff p={p} />
-                        </Series.Sequence>
-                    ) : null}
-                    {sceneBlocks}
-                    {p.showOutro && p.scenes.length > 0 ? (
-                        <Series.Sequence durationInFrames={outroEntryF}>
-                            <OutroEntryBridge p={p} lastScene={lastScene} />
-                        </Series.Sequence>
-                    ) : null}
-                    {p.showOutro ? (
-                        <Series.Sequence durationInFrames={outroF}>
-                            <OutroInner p={p} resumeAfterTransition={p.scenes.length > 0} />
-                        </Series.Sequence>
-                    ) : null}
-                    <Series.Sequence durationInFrames={endFadeF}>
-                        <EndFade />
-                    </Series.Sequence>
-                </Series>
+                    </Series>
+                </AbsoluteFill>
             </AbsoluteFill>
             <TimelineAudio p={p} />
         </AbsoluteFill>

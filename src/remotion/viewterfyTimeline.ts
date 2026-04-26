@@ -2,10 +2,10 @@ import type { ViewterfyProps } from './viewterfyProps'
 import {
     PREVIEW_END_FADE_MS,
     PREVIEW_INTRO_HANDOFF_MS,
-    PREVIEW_INTRO_MS,
     PREVIEW_OUTRO_ENTRY_DELAY_MS,
     PREVIEW_OUTRO_MS,
     msToFrames,
+    previewIntroMsByMode,
     previewBetweenScenesMs,
 } from './previewTimeline'
 
@@ -16,7 +16,7 @@ export function computeSeriesTotalFrames(p: ViewterfyProps): number {
     const { fps, scenes, showIntro, showOutro, sceneScrollSecondsById } = p
     let f = 0
     if (showIntro) {
-        f += msToFrames(PREVIEW_INTRO_MS, fps)
+        f += msToFrames(previewIntroMsByMode(p.introMode), fps)
         if (scenes.length > 0) f += msToFrames(PREVIEW_INTRO_HANDOFF_MS, fps)
     }
     scenes.forEach((scene, i) => {

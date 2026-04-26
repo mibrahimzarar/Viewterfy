@@ -76,7 +76,14 @@ export async function buildViewterfyRemotionProps(snapshot: PlainSnapshot): Prom
         viewportHeight,
         aspectRatio,
         showIntro: Boolean(snapshot.showIntro),
+        introMode:
+            snapshot.introMode === 'text-hook'
+                ? 'text-hook'
+                : snapshot.introMode === 'text-then-logo'
+                  ? 'text-then-logo'
+                  : 'logo',
         introLogo: await ensureDataUrl((snapshot.introLogo as string | null) ?? null),
+        introHookText: String(snapshot.introHookText ?? ''),
         introTitle: String(snapshot.introTitle ?? ''),
         introSubtitle: String(snapshot.introSubtitle ?? ''),
         introBackground,
